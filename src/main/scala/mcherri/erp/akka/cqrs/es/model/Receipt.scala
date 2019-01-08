@@ -18,6 +18,4 @@
  */
 package mcherri.erp.akka.cqrs.es.model
 
-class Receipt {
-
-}
+class Receipt

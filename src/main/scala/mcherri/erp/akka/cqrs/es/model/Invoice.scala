@@ -20,9 +20,10 @@ package mcherri.erp.akka.cqrs.es.model
 
 import java.util.UUID
 
+import mcherri.erp.akka.cqrs.es.utils.RichOr._
+import org.scalactic.Accumulation._
 import org.scalactic._
 import org.sisioh.baseunits.scala.money.Money
-import mcherri.erp.akka.cqrs.es.utils.RichOr._
 
 sealed abstract class InvoiceIdError(message: String) extends Error(message)
 
@@ -66,15 +67,12 @@ object LineItem {
     } else {
       Good(price)
     }
-    val quantityOrError = if (quantity <= 0) {
-      Bad(One(NegativeOrZeroQuantityError(quantity)))
-    } else if (quantity > item.remainingQuantity) {
-      Bad(One(MoreThanRemainingQuantityError(quantity)))
-    } else {
-      Good(quantity)
+    val quantityOrError = quantity match {
+      case q if q <= 0 => Bad(One(NegativeOrZeroQuantityError(quantity)))
+      case q if q > item.remainingQuantity => Bad(One(MoreThanRemainingQuantityError(quantity)))
+      case q => Good(q)
     }
 
-    import Accumulation._
     withGood(priceOrError, quantityOrError) {
       new LineItem(item, _, _) {}
     }
@@ -98,12 +96,17 @@ abstract case class Invoice private[Invoice](id: InvoiceId, client: Client, item
            canceled: Boolean = canceled, issued: Boolean = issued): Invoice Or Every[InvoiceError] =
     Invoice.apply(id, client, itemLines, canceled, issued)
 
+  private def doIfValid(fn: => Invoice Or Every[Error]): Invoice Or Every[Error] = {
+    (canceled, issued) match {
+      case (true, true) => Bad(One(AlreadyCanceledError(id)) ++ One(AlreadyIssuedError(id)))
+      case (true, _) => Bad(One(AlreadyCanceledError(id)))
+      case (_, true) => Bad(One(AlreadyIssuedError(id)))
+      case _ => fn
+    }
+  }
+
   def add(newLines: Seq[LineItem]): Invoice Or Every[Error] = {
-    if (canceled) {
-      Bad(One(AlreadyCanceledError(id)))
-    } else if (issued) {
-      Bad(One(AlreadyIssuedError(id)))
-    } else {
+    doIfValid {
       merge(newLines).flatMap(lines => copy(itemLines = lines))
     }
   }
@@ -117,12 +120,8 @@ abstract case class Invoice private[Invoice](id: InvoiceId, client: Client, item
     }.toSeq.sequence()
   }
 
-  def delete(itemIds: Seq[ItemId]): Invoice Or Every[InvoiceError] = {
-    if (canceled) {
-      Bad(One(AlreadyCanceledError(id)))
-    } else if (issued) {
-      Bad(One(AlreadyIssuedError(id)))
-    } else {
+  def delete(itemIds: Seq[ItemId]): Or[Invoice, Every[Error]] = {
+    doIfValid {
       val size = itemLines.size
       val newItemLines = itemLines.filter(lineItem => !itemIds.contains(lineItem.item.id))
 
@@ -144,12 +143,11 @@ abstract case class Invoice private[Invoice](id: InvoiceId, client: Client, item
   }
 
   def issue(): Invoice Or Every[InvoiceError] = {
-    if (issued) {
-      Bad(One(AlreadyIssuedError(id)))
-    } else if (itemLines.isEmpty) {
-      Bad(One(EmptyInvoiceError(id)))
-    } else {
-      copy(issued = true)
+    (issued, itemLines.isEmpty) match {
+      case (true, true) => Bad(One(AlreadyIssuedError(id)) ++ One(EmptyInvoiceError(id)))
+      case (true, _) => Bad(One(AlreadyIssuedError(id)))
+      case (_, true) => Bad(One(EmptyInvoiceError(id)))
+      case _ => copy(issued = true)
     }
   }
 

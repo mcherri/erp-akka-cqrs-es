@@ -106,7 +106,9 @@ class InvoiceSpec extends UnitSpec {
     ) yield invoice2
 
     assert(result.isGood)
-    assert(result.get.count == 10)
+    result.foreach { invoice1 =>
+      assert(invoice1.count == 10)
+    }
   }
 
   it should "allow deleting existing items" in new InvoiceFixture {
@@ -118,7 +120,9 @@ class InvoiceSpec extends UnitSpec {
     ) yield invoice2
 
     assert(result.isGood)
-    assert(result.get.count == 8)
+    result.foreach { invoice1 =>
+      assert(invoice1.count == 8)
+    }
   }
 
   it should "disallow deleting non-existing items" in new InvoiceFixture {
