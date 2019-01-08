@@ -6,7 +6,6 @@ scala:
 before_install: umask 0022
 script:
   - sbt clean coverage test
-  - sbt publish
 after_success:
   - sbt coverageReport
   - sbt coverageAggregate
