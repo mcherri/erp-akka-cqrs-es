@@ -20,6 +20,7 @@ package mcherri.erp.akka.cqrs.es.model
 
 import java.util.UUID
 
+import mcherri.erp.akka.cqrs.es.model.Invoice._
 import mcherri.erp.akka.cqrs.es.utils.RichOr._
 import org.scalactic.Accumulation._
 import org.scalactic._
@@ -78,17 +79,6 @@ object LineItem {
     }
   }
 }
-
-sealed abstract class InvoiceError(message: String) extends Error(message)
-
-case class ItemIdsNotFoundError(id: InvoiceId, itemIds: Seq[ItemId])
-  extends InvoiceError(s"Invoice with id = $id does not contain one of these item ids (${itemIds.mkString(", ")})")
-case class AlreadyCanceledError(id: InvoiceId)
-  extends InvoiceError(s"Invoice with id = $id does is already canceled")
-case class AlreadyIssuedError(id: InvoiceId)
-  extends InvoiceError(s"Invoice with id = $id does is already issued")
-case class EmptyInvoiceError(id: InvoiceId)
-  extends InvoiceError(s"Invoice with id = $id does is empty")
 
 abstract case class Invoice private[Invoice](id: InvoiceId, client: Client, itemLines: Seq[LineItem],
                                              canceled: Boolean = false, issued: Boolean = false) {
@@ -155,6 +145,16 @@ abstract case class Invoice private[Invoice](id: InvoiceId, client: Client, item
 }
 
 object Invoice {
+  sealed abstract class InvoiceError(message: String) extends Error(message)
+  case class ItemIdsNotFoundError(id: InvoiceId, itemIds: Seq[ItemId])
+    extends InvoiceError(s"Invoice with id = $id does not contain one of these item ids (${itemIds.mkString(", ")})")
+  case class AlreadyCanceledError(id: InvoiceId)
+    extends InvoiceError(s"Invoice with id = $id does is already canceled")
+  case class AlreadyIssuedError(id: InvoiceId)
+    extends InvoiceError(s"Invoice with id = $id does is already issued")
+  case class EmptyInvoiceError(id: InvoiceId)
+    extends InvoiceError(s"Invoice with id = $id does is empty")
+
   def apply(id: InvoiceId, client: Client): Invoice Or Every[InvoiceError] =
     apply(id, client, Seq.empty, canceled = false, issued = false)
 

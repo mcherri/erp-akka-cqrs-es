@@ -18,23 +18,24 @@
  */
 package mcherri.erp.akka.cqrs.es.model
 
+import mcherri.erp.akka.cqrs.es.model.PersonId.PersonIdError
+import mcherri.erp.akka.cqrs.es.model.User.{AlreadyDisabledError, UserError}
 import org.scalactic._
 
-sealed abstract class LongIdError(message: String) extends Error(message)
-
-case class PersonIdError(value: Long)
-  extends LongIdError(s"PersonId with value= $value that is not positive")
-
 abstract case class PersonId private[PersonId](value: Long) {
-  def copy(value: Long = value): PersonId Or Every[LongIdError] = PersonId.apply(value)
+  def copy(value: Long = value): PersonId Or Every[PersonIdError] = PersonId.apply(value)
 }
 
 object PersonId {
-  def apply(value: Long): PersonId Or Every[LongIdError] = {
+  sealed abstract class PersonIdError(message: String) extends Error(message)
+  case class IdError(value: Long)
+    extends PersonIdError(s"PersonId with value= $value that is not positive")
+
+  def apply(value: Long): PersonId Or Every[PersonIdError] = {
     if (value > 0) {
       Good(new PersonId(value) {})
     } else {
-      Bad(One(PersonIdError(value)))
+      Bad(One(IdError(value)))
     }
   }
 }
@@ -52,15 +53,12 @@ trait Corporation {
   def corporationAddress: Address
 }
 
-sealed abstract class UserError(message: String) extends Error(message)
-case class UserAlreadyDisabledError(id: PersonId) extends UserError(s"User with id = $id is already disabled")
-
 abstract case class User private[User](id: PersonId /*, name: String, username: String*/, disabled: Boolean = false) extends Person {
   def copy(id: PersonId = id, disabled: Boolean = disabled) = User.apply(id, disabled)
 
   def disable(): User Or Every[UserError] = {
     if (disabled) {
-      Bad(One(UserAlreadyDisabledError(id)))
+      Bad(One(AlreadyDisabledError(id)))
     } else {
       copy(disabled = true)
     }
@@ -68,6 +66,9 @@ abstract case class User private[User](id: PersonId /*, name: String, username: 
 }
 
 object User {
+  sealed abstract class UserError(message: String) extends Error(message)
+  case class AlreadyDisabledError(id: PersonId) extends UserError(s"User with id = $id is already disabled")
+
   //noinspection RedundantDefaultArgument
   def apply(id: PersonId): User Or Every[UserError] = User.apply(id, disabled = false)
 

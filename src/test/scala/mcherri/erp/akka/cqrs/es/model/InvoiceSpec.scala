@@ -21,6 +21,7 @@ package mcherri.erp.akka.cqrs.es.model
 import java.util.UUID
 
 import mcherri.erp.akka.cqrs.es.UnitSpec
+import mcherri.erp.akka.cqrs.es.model.ItemId.ItemIdError
 import mcherri.erp.akka.cqrs.es.utils.RichOr._
 import org.scalactic.{Every, Or}
 import org.sisioh.baseunits.scala.money.Money
