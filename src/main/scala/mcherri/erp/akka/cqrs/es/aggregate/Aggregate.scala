@@ -27,6 +27,12 @@ import org.scalactic._
 
 abstract class Aggregate[T <: State] extends PersistentActor with ActorLogging {
   type StateOrError = T Or Every[model.Error]
+
+  /*
+   * Codacy is reporting an issue here for using a var. Actually this is the
+   * only var in the project :). This is a false positive issue. Please look
+   * at https://stackoverflow.com/a/18810678. 
+   */
   protected var state: StateOrError = Bad(One(UninitializedError(id)))
 
   override def receiveRecover: Receive = {
