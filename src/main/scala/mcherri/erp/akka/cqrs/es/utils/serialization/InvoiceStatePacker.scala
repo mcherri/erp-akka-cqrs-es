@@ -22,7 +22,7 @@ import java.io.NotSerializableException
 import java.util.UUID
 
 import com.google.protobuf.any
-import mcherri.erp.akka.cqrs.es.model.{CanceledInvoice, CanceledIssuedInvoice, Client, DraftInvoice, EmptyInvoice, InvoiceId, IssuedInvoice, PersonId, UninitializedInvoice, protobuf}
+import mcherri.erp.akka.cqrs.es.model._
 import mcherri.erp.akka.cqrs.es.utils.serialization.InvoiceStatePacker._
 import scalapb.{GeneratedMessage, Message}
 
