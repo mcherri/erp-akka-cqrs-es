@@ -4,10 +4,59 @@
 
 erp-akka-cqrs-es
 ================
-erp-akka-cqrs-es is an basic ERP implemented using CQRS/ES and Akka. It is inspired by:
+erp-akka-cqrs-es is a basic ERP implemented using CQRS/ES and Akka. It is inspired by:
 
 -   [akka-ddd](https://github.com/pawelkaczor/akka-ddd)
 -   [Fun.CQRS](https://github.com/fun-cqrs/fun-cqrs)
 -   [Bank API CQRS Event Sourcing System on Akka-Cluster](https://github.com/j5ik2o/akka-ddd-cqrs-es-example)
 -   [Event Horizon](https://github.com/looplab/eventhorizon)
 -   [Go.CQRS](https://github.com/jetbasrawi/go.cqrs)
+
+Features/Todos
+--------------
+-   ~~Akka Persistance~~
+-   ~~Everything is serialized in Protocol Buffers~~
+-   ~~FSM~~
+-   ~~Test Actor Failover~~
+-   ~~Travis CI Builds~~
+-   ~~Codacy Code Review~~
+-   ~~Codacy Code Coverage~~
+-   Cassandra
+-   Kafka
+-   Saga
+-   Akka Cluster and Cluster Sharding
+-   Local Environment using Vagrant
+-   SBT Sub-projects
+-   Docker Images for each Sub-project
+-   Kubernetes
+
+Some Useful Commands
+--------------------
+-   To test:
+    ```bash
+    sbt clean test
+    ```
+-   To test with coverage:
+    ```bash
+    sbt clean coverage test
+    ```
+-   To generate coverage report:
+    ```bash
+    sbt coverageReport
+    ```
+-   To view dependency graph:
+    ```bash
+    sbt dependencyBrowseGraph
+    ```
+-   To view dependency graph for testing:
+    ```bash
+    sbt test:dependencyBrowseGraph
+    ```
+-   To check is the dependencies are latest:
+    ```bash
+    sbt dependencyUpdates
+    ```
+-   To check is the dependencies are latest for testing:
+    ```bash
+    sbt test:dependencyUpdates
+    ```
