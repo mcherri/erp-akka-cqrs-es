@@ -21,7 +21,7 @@ package mcherri.erp.akka.cqrs.es.aggregate
 import akka.actor.{ActorRef, Props}
 import mcherri.erp.akka.cqrs.es.aggregate.Aggregate.Protocol.GetState
 import mcherri.erp.akka.cqrs.es.aggregate.RestartableActor.RestartActor
-import mcherri.erp.akka.cqrs.es.utils.serialization.ProtobufSerializer._
+import mcherri.erp.akka.cqrs.es.utils.serialization.DummiesPacker._
 import mcherri.erp.akka.cqrs.es.{ActorUnitSpec, model}
 import org.scalactic.{Bad, Good, One}
 
