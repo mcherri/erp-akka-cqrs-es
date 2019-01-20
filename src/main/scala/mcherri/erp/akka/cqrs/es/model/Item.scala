@@ -29,9 +29,6 @@ abstract case class ItemId private[ItemId](value: UUID) {
 }
 
 object ItemId {
-  sealed abstract class ItemIdError(message: String) extends Error(message)
-  case class UuidError(value: UUID)
-    extends ItemIdError(s"ItemId with UUID = $value is not version 4 UUID")
 
   def apply(value: UUID): ItemId Or Every[ItemIdError] = {
     if (value.version() == 4) {
@@ -40,8 +37,23 @@ object ItemId {
       Bad(One(UuidError(value)))
     }
   }
+
+  sealed abstract class ItemIdError(message: String) extends Error(message)
+
+  case class UuidError(value: UUID)
+    extends ItemIdError(s"ItemId with UUID = $value is not version 4 UUID")
 }
 
-case class Item(id: ItemId, code: String, description: String, price: Money, remainingQuantity: BigDecimal)
+abstract case class Item private[Item](id: ItemId, code: String, description: String,
+                                       price: Money, remainingQuantity: BigDecimal) {
+  def copy(id: ItemId = id, code: String = code, description: String = description,
+           price: Money = price, remainingQuantity: BigDecimal = remainingQuantity): Item Or Every[Error] =
+    Item.apply(id, code, description, price, remainingQuantity)
+}
 
-/*extends Stamp*/
+object Item {
+  def apply(id: ItemId, code: String, description: String,
+            price: Money, remainingQuantity: BigDecimal): Item Or Every[Error] = {
+    Good(new Item(id, code, description, price, remainingQuantity) {})
+  }
+}

@@ -1,0 +1,177 @@
+/*
+ * Copyright © 2019 Mustapha Cherri
+ *
+ * This file is part of erp-akka-cqrs-es.
+ *
+ * erp-akka-cqrs-es is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * erp-akka-cqrs-es is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with erp-akka-cqrs-es.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+syntax = "proto3";
+package mcherri.erp.akka.cqrs.es.model.protobuf;
+
+import "scalapb/scalapb.proto";
+import "common.proto";
+import "person.proto";
+
+option (scalapb.options) = {
+    single_file: true
+    import: "mcherri.erp.akka.cqrs.es.model.protobuf.common.Command"
+    import: "mcherri.erp.akka.cqrs.es.model.protobuf.common.DomainEvent"
+    import: "mcherri.erp.akka.cqrs.es.model.protobuf.common.State"
+    import: "mcherri.erp.akka.cqrs.es.model.protobuf.error.Error"
+    preamble: "sealed trait InvoiceCommand extends Command"
+    preamble: "sealed trait InvoiceDomainEvent extends DomainEvent"
+    preamble: "sealed trait InvoiceState extends State"
+    preamble: "sealed trait InvoiceError extends Error"
+};
+
+message LineItem {
+    string item_id = 1;
+    string code = 2;
+    Money price = 3;
+    string quantity = 4;
+}
+
+// InvoiceCommand
+message CreateInvoice {
+    option (scalapb.message).extends = "InvoiceCommand";
+
+    Client client = 2 [(scalapb.field).no_box = true];
+}
+
+message AddItems {
+    option (scalapb.message).extends = "InvoiceCommand";
+
+    repeated LineItem line_items = 2 [(scalapb.field).collection_type = "scala.collection.immutable.Seq"];
+}
+
+message DeleteItems {
+    option (scalapb.message).extends = "InvoiceCommand";
+
+    repeated string item_ids = 2 [(scalapb.field).collection_type = "scala.collection.immutable.Seq"];
+}
+
+message CancelInvoice {
+    option (scalapb.message).extends = "InvoiceCommand";
+}
+
+message IssueInvoice {
+    option (scalapb.message).extends = "InvoiceCommand";
+}
+
+// InvoiceDomainEvent
+message InvoiceCreated {
+    option (scalapb.message).extends = "InvoiceDomainEvent";
+
+    string id = 1;
+    Client client = 2 [(scalapb.field).no_box = true];
+}
+
+message ItemsAdded {
+    option (scalapb.message).extends = "InvoiceDomainEvent";
+
+    string id = 1;
+    repeated LineItem line_items = 2 [(scalapb.field).collection_type = "scala.collection.immutable.Seq"];
+}
+
+message ItemsDeleted {
+    option (scalapb.message).extends = "InvoiceDomainEvent";
+
+    string id = 1;
+    repeated string item_ids = 2 [(scalapb.field).collection_type = "scala.collection.immutable.Seq"];
+}
+
+message InvoiceCanceled {
+    option (scalapb.message).extends = "InvoiceDomainEvent";
+
+    string id = 1;
+}
+
+message InvoiceIssued {
+    option (scalapb.message).extends = "InvoiceDomainEvent";
+
+    string id = 1;
+}
+
+// InvoiceState
+message UninitializedInvoice {
+    option (scalapb.message).extends = "InvoiceState";
+}
+
+message EmptyInvoice {
+    option (scalapb.message).extends = "InvoiceState";
+
+    string id = 1;
+    Client client = 2 [(scalapb.field).no_box = true];
+}
+
+message DraftInvoice {
+    option (scalapb.message).extends = "InvoiceState";
+
+    string id = 1;
+    Client client = 2 [(scalapb.field).no_box = true];
+    repeated LineItem line_items = 3 [(scalapb.field).collection_type = "scala.collection.immutable.Seq"];
+}
+
+message CanceledInvoice {
+    option (scalapb.message).extends = "InvoiceState";
+
+    string id = 1;
+}
+
+message IssuedInvoice {
+    option (scalapb.message).extends = "InvoiceState";
+
+    string id = 1;
+}
+
+message CanceledIssuedInvoice {
+    option (scalapb.message).extends = "InvoiceState";
+
+    string id = 1;
+}
+
+// InvoiceError
+message ItemIdsNotFoundError {
+    option (scalapb.message).extends = "Error";
+
+    string id = 1;
+    repeated string item_ids = 2 [(scalapb.field).collection_type = "scala.collection.immutable.Seq"];
+}
+
+message AlreadyCanceledError {
+    option (scalapb.message).extends = "Error";
+
+    string id = 1;
+}
+
+message AlreadyIssuedError {
+    option (scalapb.message).extends = "Error";
+
+    string id = 1;
+}
+
+message EmptyInvoiceError {
+    option (scalapb.message).extends = "Error";
+
+    string id = 1;
+}
+
+message UninitializedInvoiceError {
+    option (scalapb.message).extends = "Error";
+}
+
+message AlreadyInitializedError {
+    option (scalapb.message).extends = "Error";
+}

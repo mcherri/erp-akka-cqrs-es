@@ -19,3 +19,7 @@
 package mcherri.erp.akka.cqrs.es.model
 
 abstract class Error(val message: String)
+
+case class UninitializedError(id: String)
+  extends Error(s"Aggregate with id = $id is not initialized yet")
+

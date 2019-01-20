@@ -20,8 +20,19 @@ package mcherri.erp.akka.cqrs.es.utils
 
 import org.scalactic.{Bad, Every, Good, Or}
 
+import scala.collection.immutable.Seq
+
 object RichOr {
 
+  /*
+   * The code below basically converst from Seq[G Or Every[T]] to Seq[G] Or Every[T].
+   * It can be implemented in many ways. The choice here is to first try to accumulate
+   * Good values. Once a Bad value is found, the whole result is converted to Bad and
+   * all the errors found so far are added to it.
+   *
+   * TODO: I think this code should reside in scalactic itself. Maybe I should do a PR for them.
+   * TODO: This code assume we have a Seq[Or[_]]. It should be generalized to Traversable[Or[_]].
+   */
   implicit class SeqHelper[+G, +T](val seq: Seq[G Or Every[T]]) extends AnyVal {
     def sequence(): Seq[G] Or Every[T] = seq.foldLeft(Good(Seq[G]()): Seq[G] Or Every[T]) {
       case (acc, Good(lineItem)) =>
@@ -34,4 +45,5 @@ object RichOr {
     }
 
   }
+
 }

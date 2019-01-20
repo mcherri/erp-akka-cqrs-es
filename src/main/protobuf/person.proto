@@ -1,0 +1,60 @@
+/*
+ * Copyright © 2019 Mustapha Cherri
+ *
+ * This file is part of erp-akka-cqrs-es.
+ *
+ * erp-akka-cqrs-es is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * erp-akka-cqrs-es is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with erp-akka-cqrs-es.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+syntax = "proto3";
+package mcherri.erp.akka.cqrs.es.model.protobuf;
+
+import "scalapb/scalapb.proto";
+
+option (scalapb.options) = {
+    single_file: true
+    import: "mcherri.erp.akka.cqrs.es.model.protobuf.common.DomainEvent"
+    preamble: "sealed trait Person { def id: String }"
+    preamble: "sealed trait UserDomainEvent extends DomainEvent"
+};
+
+message User {
+    option (scalapb.message).extends = "Person";
+
+    string id = 1;
+}
+
+message UserCreated {
+    option (scalapb.message).extends = "UserDomainEvent";
+
+    string id = 1;
+}
+
+message UserDisabled {
+    option (scalapb.message).extends = "UserDomainEvent";
+
+    string id = 1;
+}
+
+message Client {
+    option (scalapb.message).extends = "Person";
+
+    string id = 1;
+}
+
+message Supplier {
+    option (scalapb.message).extends = "Person";
+
+    string id = 1;
+}

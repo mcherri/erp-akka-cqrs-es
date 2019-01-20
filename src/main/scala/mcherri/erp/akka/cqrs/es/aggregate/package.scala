@@ -16,21 +16,18 @@
  * You should have received a copy of the GNU General Public License
  * along with erp-akka-cqrs-es.  If not, see <https://www.gnu.org/licenses/>.
  */
-package mcherri.erp.akka.cqrs.es.model
+package mcherri.erp.akka.cqrs.es
 
-import mcherri.erp.akka.cqrs.es.UnitSpec
+import mcherri.erp.akka.cqrs.es.model.DomainEvent
+import org.scalactic.{Every, Or}
 
-class UserSpec extends UnitSpec {
+import scala.collection.immutable.Seq
 
-  "A user" should "be disabled once" in {
+package object aggregate {
 
-    val stateOrError = for (
-      id <- PersonId(1);
-      state1 <- UninitializedUser.init(id);
-      state2 <- state1.disable();
-      state3 <- state2.disable()
-    ) yield state3
+  // TODO: CommandResult can happen in a Future
+  type CommandResult = Seq[DomainEvent] Or Every[model.Error]
 
-    assert(stateOrError.isBad)
-  }
+  trait Command
+
 }

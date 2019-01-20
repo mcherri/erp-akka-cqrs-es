@@ -16,21 +16,23 @@
  * You should have received a copy of the GNU General Public License
  * along with erp-akka-cqrs-es.  If not, see <https://www.gnu.org/licenses/>.
  */
-package mcherri.erp.akka.cqrs.es.model
+package mcherri.erp.akka.cqrs.es.aggregate
 
-import mcherri.erp.akka.cqrs.es.UnitSpec
+import akka.persistence.PersistentActor
+import mcherri.erp.akka.cqrs.es.aggregate.RestartableActor.{RestartActor, RestartActorException}
 
-class UserSpec extends UnitSpec {
+/*
+ * RestartableActor is a fork from https://tudorzgureanu.com/akka-persistence-testing-persistent-actors/
+ */
+trait RestartableActor extends PersistentActor {
 
-  "A user" should "be disabled once" in {
-
-    val stateOrError = for (
-      id <- PersonId(1);
-      state1 <- UninitializedUser.init(id);
-      state2 <- state1.disable();
-      state3 <- state2.disable()
-    ) yield state3
-
-    assert(stateOrError.isBad)
+  abstract override def receiveCommand: PartialFunction[Any, Unit] = super.receiveCommand orElse {
+    case RestartActor => throw RestartActorException
   }
+}
+
+object RestartableActor {
+  case object RestartActor
+
+  private object RestartActorException extends Exception
 }

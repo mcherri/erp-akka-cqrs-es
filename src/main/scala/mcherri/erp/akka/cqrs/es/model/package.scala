@@ -16,21 +16,34 @@
  * You should have received a copy of the GNU General Public License
  * along with erp-akka-cqrs-es.  If not, see <https://www.gnu.org/licenses/>.
  */
-package mcherri.erp.akka.cqrs.es.model
+package mcherri.erp.akka.cqrs.es
 
-import mcherri.erp.akka.cqrs.es.UnitSpec
+import mcherri.erp.akka.cqrs.es.model.protobuf.common
+import org.sisioh.baseunits.scala.money
 
-class UserSpec extends UnitSpec {
+package object model {
 
-  "A user" should "be disabled once" in {
+ /*
+  * TODO: DomainEvent should have metadata like:
+  * - occurredAt: TimePoint
+  * - occurredBy: User
+  *
+  * This will help the read side to track thing like:
+  * - createdBy: User
+  * - createdAt: TimePoint
+  * - updatedBy: User
+  * - updatedAt: TimePoint
+  */
+  trait DomainEvent
 
-    val stateOrError = for (
-      id <- PersonId(1);
-      state1 <- UninitializedUser.init(id);
-      state2 <- state1.disable();
-      state3 <- state2.disable()
-    ) yield state3
-
-    assert(stateOrError.isBad)
+  trait State {
+    type StateOrErrors
+    type DomainEventOrErrors
   }
+
+  // TODO: Move this to protobuf package somehow
+  implicit class RichMoney(val m: money.Money) extends AnyVal {
+    def toProtobuf: common.Money = common.Money(m.amount.toString(), m.currency.getCurrencyCode)
+  }
+
 }

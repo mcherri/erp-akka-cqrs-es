@@ -20,150 +20,264 @@ package mcherri.erp.akka.cqrs.es.model
 
 import java.util.UUID
 
+import mcherri.erp.akka.cqrs.es.model.Invoice.Protocol._
 import mcherri.erp.akka.cqrs.es.model.Invoice._
-import mcherri.erp.akka.cqrs.es.utils.RichOr._
+import mcherri.erp.akka.cqrs.es.model.InvoiceId.InvoiceIdError
+import mcherri.erp.akka.cqrs.es.model.LineItem.LineItemError
 import org.scalactic.Accumulation._
 import org.scalactic._
 import org.sisioh.baseunits.scala.money.Money
+import mcherri.erp.akka.cqrs.es.utils.RichOr._
 
-sealed abstract class InvoiceIdError(message: String) extends Error(message)
-
-case class InvoiceUuidError(value: UUID)
-  extends InvoiceIdError(s"InvoiceId with UUID = $value is not version 4 UUID")
+import scala.collection.immutable.Seq
 
 abstract case class InvoiceId private[InvoiceId](value: UUID) {
   def copy(value: UUID = value): InvoiceId Or Every[InvoiceIdError] = InvoiceId.apply(value)
 }
 
 object InvoiceId {
+
   def apply(value: UUID): InvoiceId Or Every[InvoiceIdError] = {
     if (value.version() == 4) {
       Good(new InvoiceId(value) {})
     } else {
-      Bad(One(InvoiceUuidError(value)))
+      Bad(One(UuidError(value)))
     }
   }
+
+  sealed abstract class InvoiceIdError(message: String) extends Error(message)
+
+  case class UuidError(value: UUID)
+    extends InvoiceIdError(s"InvoiceId with UUID = $value is not version 4 UUID")
 }
 
-sealed abstract class LineItemError(message: String) extends Error(message)
-
-case class NegativePriceError(price: Money)
-  extends LineItemError(s"Line item with negative price $price")
-
-case class NegativeOrZeroQuantityError(quantity: BigDecimal)
-  extends LineItemError(s"Line item with negative or zero quantity $quantity")
-
-case class MoreThanRemainingQuantityError(quantity: BigDecimal)
-  extends LineItemError(s"Line item with quantity that is more than the item remaining quantity")
-
-abstract case class LineItem private[LineItem](item: Item, price: Money, quantity: BigDecimal) {
-  def copy(item: Item = item, price: Money = price, quantity: BigDecimal = quantity): LineItem Or Every[LineItemError] =
-    LineItem.apply(item, price, quantity)
+abstract case class LineItem private[LineItem](itemId: ItemId, code: String,
+                                               price: Money, quantity: BigDecimal) {
+  def copy(itemId: ItemId = itemId, code: String = code, price: Money = price,
+           quantity: BigDecimal = quantity): LineItem Or Every[LineItemError] =
+    LineItem.apply(itemId, code, price, quantity)
 }
 
 object LineItem {
-  def apply(item: Item, price: Money, quantity: BigDecimal): LineItem Or Every[LineItemError] = {
-    val priceOrError = if (price.isNegative) {
+
+  def apply(itemId: ItemId, code: String, price: Money, quantity: BigDecimal): LineItem Or Every[LineItemError] = {
+    val priceOrError: Or[Money, One[NegativePriceError]] = if (price.isNegative) {
       Bad(One(NegativePriceError(price)))
     } else {
       Good(price)
     }
     val quantityOrError = quantity match {
       case q if q <= 0 => Bad(One(NegativeOrZeroQuantityError(quantity)))
-      case q if q > item.remainingQuantity => Bad(One(MoreThanRemainingQuantityError(quantity)))
+      //      case q if q > item.remainingQuantity => Bad(One(MoreThanRemainingQuantityError(quantity)))
       case q => Good(q)
     }
 
-    withGood(priceOrError, quantityOrError) {
-      new LineItem(item, _, _) {}
+    withGood(priceOrError, quantityOrError) { (price, quantity) =>
+      new LineItem(itemId, code, price, quantity) {}
     }
+  }
+
+  sealed abstract class LineItemError(message: String) extends Error(message)
+
+  case class NegativePriceError(price: Money)
+    extends LineItemError(s"Line item with negative price $price")
+
+  case class NegativeOrZeroQuantityError(quantity: BigDecimal)
+    extends LineItemError(s"Line item with negative or zero quantity $quantity")
+
+  case class MoreThanRemainingQuantityError(quantity: BigDecimal)
+    extends LineItemError(s"Line item with quantity that is more than the item remaining quantity")
+}
+
+/*
+ * The code below implements invoice states using the workflow below:
+ *
+ *                                                Add
+ *            +---------------+ Init  +-------+  Items   +-------------+
+ * Start +--->+ Uninitialized +------>+ Empty +--------->+    Draft    |
+ *            +---------------+       +-+---+-+          +----+----+-+-+
+ *                                      |   ^    Delete       |    | |
+ *                                      |   |    Items        |    | |
+ *                                      |   +-----------------+    | |
+ *                                      |                          | |
+ *                                      |   +----------+   Cancel  | |
+ *                                      +-->+ Canceled +<----------+ |
+ *                                          +----------+             |
+ *                                                ^                  |
+ *                                         Cancel |                  |
+ *                                          +-----+----+     Issue   |
+ *                                End <-----+  Issued  +<------------+
+ *                                          +----------+
+ *
+ * P.S: No Invoice case class is needed in this case.
+ */
+trait InvoiceState extends State {
+  override type StateOrErrors = InvoiceState Or Every[Error]
+  override type DomainEventOrErrors = InvoiceDomainEvent Or Every[Error]
+
+  def canInit(id: InvoiceId, client: Client): DomainEventOrErrors
+
+  def init(id: InvoiceId, client: Client): StateOrErrors
+
+  def canAdd(newLines: Seq[LineItem]): DomainEventOrErrors
+
+  def add(newLines: Seq[LineItem]): StateOrErrors
+
+  def canDelete(itemIds: Seq[ItemId]): DomainEventOrErrors
+
+  def delete(itemIds: Seq[ItemId]): StateOrErrors
+
+  def canCancel: DomainEventOrErrors
+
+  def cancel(): StateOrErrors
+
+  def canIssue: DomainEventOrErrors
+
+  def issue(): StateOrErrors
+}
+
+// FIXME: AbstractInvoiceState should take an Every[InvoiceError]
+abstract class AbstractInvoiceState(defaultError: InvoiceError) extends InvoiceState {
+  override def canInit(id: InvoiceId, client: Client): DomainEventOrErrors = Bad(One(defaultError))
+
+  override def init(id: InvoiceId, client: Client): StateOrErrors = Bad(One(defaultError))
+
+  override def canAdd(newLines: Seq[LineItem]): DomainEventOrErrors = Bad(One(defaultError))
+
+  override def add(newLines: Seq[LineItem]): StateOrErrors = Bad(One(defaultError))
+
+  override def canDelete(itemIds: Seq[ItemId]): DomainEventOrErrors = Bad(One(defaultError))
+
+  override def delete(itemIds: Seq[ItemId]): StateOrErrors = Bad(One(defaultError))
+
+  override def canCancel: DomainEventOrErrors = Bad(One(defaultError))
+
+  override def cancel(): StateOrErrors = Bad(One(defaultError))
+
+  override def canIssue: DomainEventOrErrors = Bad(One(defaultError))
+
+  override def issue(): StateOrErrors = Bad(One(defaultError))
+}
+
+case object UninitializedInvoice extends AbstractInvoiceState(Invoice.UninitializedInvoiceError) {
+  // TODO: Maybe we need to validate the parameters here.
+  override def canInit(id: InvoiceId, client: Client): DomainEventOrErrors =
+    Good(InvoiceCreated(id, client))
+
+  override def init(id: InvoiceId, client: Client): StateOrErrors = {
+    canInit(id, client).map(_ => EmptyInvoice(id, client))
   }
 }
 
-abstract case class Invoice private[Invoice](id: InvoiceId, client: Client, itemLines: Seq[LineItem],
-                                             canceled: Boolean = false, issued: Boolean = false) {
-  def copy(id: InvoiceId = id, client: Client = client, itemLines: Seq[LineItem] = itemLines,
-           canceled: Boolean = canceled, issued: Boolean = issued): Invoice Or Every[InvoiceError] =
-    Invoice.apply(id, client, itemLines, canceled, issued)
+case class EmptyInvoice(id: InvoiceId, client: Client) extends AbstractInvoiceState(EmptyInvoiceError(id)) {
+  override def canInit(id: InvoiceId, client: Client): UninitializedInvoice.DomainEventOrErrors = Bad(One(AlreadyInitializedError))
 
-  private def doIfValid(fn: => Invoice Or Every[Error]): Invoice Or Every[Error] = {
-    (canceled, issued) match {
-      case (true, true) => Bad(One(AlreadyCanceledError(id)) ++ One(AlreadyIssuedError(id)))
-      case (true, _) => Bad(One(AlreadyCanceledError(id)))
-      case (_, true) => Bad(One(AlreadyIssuedError(id)))
-      case _ => fn
+  override def init(id: InvoiceId, client: Client): StateOrErrors = Bad(One(AlreadyInitializedError))
+
+  override def add(newLines: Seq[LineItem]): StateOrErrors = canAdd(newLines).map { _ =>
+    if (newLines.isEmpty) {
+      this
+    } else {
+      DraftInvoice(id, client, newLines)
     }
   }
 
-  def add(newLines: Seq[LineItem]): Invoice Or Every[Error] = {
-    doIfValid {
-      merge(newLines).flatMap(lines => copy(itemLines = lines))
-    }
-  }
+  override def canAdd(newLines: Seq[LineItem]): DomainEventOrErrors = Good(ItemsAdded(id, newLines))
+
+  override def canCancel: DomainEventOrErrors = Good(InvoiceCanceled(id))
+
+  override def cancel(): StateOrErrors = canCancel.map(_ => CanceledInvoice(id))
+}
+
+case class DraftInvoice(id: InvoiceId, client: Client,
+                        itemLines: Seq[LineItem]) extends AbstractInvoiceState(AlreadyInitializedError) {
+  override def add(newLines: Seq[LineItem]): StateOrErrors =
+    for (
+      _ <- canAdd(newLines);
+      itemLines <- merge(newLines)
+    ) yield copy(itemLines = itemLines)
+
+  override def canAdd(newLines: Seq[LineItem]): DomainEventOrErrors = Good(ItemsAdded(id, newLines))
 
   private def merge(newLines: Seq[LineItem]) = {
-    (itemLines ++ newLines).groupBy(_.item.id).map {
+    (itemLines ++ newLines).groupBy(_.itemId).map {
       case (_, seq: Seq[LineItem]) =>
         seq.tail.foldLeft(Good(seq.head): LineItem Or Every[LineItemError]) { (acc, line1) =>
           acc.flatMap(line2 => line2.copy(quantity = line1.quantity + line2.quantity))
         }
-    }.toSeq.sequence()
+    }.to[Seq].sequence()
   }
 
-  def delete(itemIds: Seq[ItemId]): Or[Invoice, Every[Error]] = {
-    doIfValid {
-      val size = itemLines.size
-      val newItemLines = itemLines.filter(lineItem => !itemIds.contains(lineItem.item.id))
+  override def delete(itemIds: Seq[ItemId]): StateOrErrors = {
+    val newItemLines = itemLines.filter(lineItem => !itemIds.contains(lineItem.itemId))
 
-      if (newItemLines.size < size) {
-        copy(itemLines = newItemLines)
+    canDelete(itemIds).map { _ =>
+      if (newItemLines.isEmpty) {
+        EmptyInvoice(id, client)
       } else {
-        // TODO: Identify which item was not found exactly
-        Bad(One(ItemIdsNotFoundError(id, itemIds)))
+        copy(itemLines = newItemLines)
       }
     }
   }
 
-  def cancel(): Invoice Or Every[InvoiceError] = {
-    if (canceled) {
-      Bad(One(AlreadyCanceledError(id)))
+  override def canDelete(itemIds: Seq[ItemId]): DomainEventOrErrors = {
+    val newItemLines = itemLines.filter(lineItem => !itemIds.contains(lineItem.itemId))
+
+    if (newItemLines.size < itemLines.size) {
+      Good(ItemsDeleted(id, itemIds))
     } else {
-      copy(canceled = true)
+      // TODO: Identify which item was not found exactly
+      Bad(One(ItemIdsNotFoundError(id, itemIds)))
     }
+
   }
 
-  def issue(): Invoice Or Every[InvoiceError] = {
-    (issued, itemLines.isEmpty) match {
-      case (true, true) => Bad(One(AlreadyIssuedError(id)) ++ One(EmptyInvoiceError(id)))
-      case (true, _) => Bad(One(AlreadyIssuedError(id)))
-      case (_, true) => Bad(One(EmptyInvoiceError(id)))
-      case _ => copy(issued = true)
-    }
-  }
+  override def cancel(): StateOrErrors = canCancel.map(_ => CanceledInvoice(id))
 
-  def count: Int = itemLines.size
+  override def canCancel: DomainEventOrErrors = Good(InvoiceCanceled(id))
+
+  override def issue(): StateOrErrors = canIssue.map(_ => IssuedInvoice(id))
+
+  override def canIssue: DomainEventOrErrors = Good(InvoiceIssued(id))
 }
 
+case class CanceledInvoice(id: InvoiceId) extends AbstractInvoiceState(AlreadyCanceledError(id))
+
+case class IssuedInvoice(id: InvoiceId) extends AbstractInvoiceState(AlreadyIssuedError(id)) {
+  override def cancel(): StateOrErrors = canCancel.map(_ => CanceledIssuedInvoice(id))
+
+  override def canCancel: DomainEventOrErrors = Good(InvoiceCanceled(id))
+}
+
+case class CanceledIssuedInvoice(id: InvoiceId) extends AbstractInvoiceState(AlreadyCanceledError(id))
+
 object Invoice {
+
   sealed abstract class InvoiceError(message: String) extends Error(message)
+
   case class ItemIdsNotFoundError(id: InvoiceId, itemIds: Seq[ItemId])
     extends InvoiceError(s"Invoice with id = $id does not contain one of these item ids (${itemIds.mkString(", ")})")
+
   case class AlreadyCanceledError(id: InvoiceId)
     extends InvoiceError(s"Invoice with id = $id does is already canceled")
+
   case class AlreadyIssuedError(id: InvoiceId)
     extends InvoiceError(s"Invoice with id = $id does is already issued")
+
   case class EmptyInvoiceError(id: InvoiceId)
     extends InvoiceError(s"Invoice with id = $id does is empty")
 
-  def apply(id: InvoiceId, client: Client): Invoice Or Every[InvoiceError] =
-    apply(id, client, Seq.empty, canceled = false, issued = false)
+  case object UninitializedInvoiceError extends InvoiceError("Invoice is not initialized yet")
 
-  private[Invoice] def apply(id: InvoiceId, client: Client, itemLines: Seq[LineItem],
-                             canceled: Boolean, issued: Boolean): Invoice Or Every[InvoiceError] =
-    Good(new Invoice(id, client, itemLines, canceled, issued) {})
+  case object AlreadyInitializedError extends InvoiceError("Invoice is already initialized")
 
-  /*
-     createdBy: User, createdAt: TimePoint,
-     updatedBy: User, updatedAt: TimePoint) extends Stamp
-   */
+  object Protocol {
+    sealed trait InvoiceDomainEvent extends DomainEvent
+    case class InvoiceCreated(id: InvoiceId, client: Client) extends InvoiceDomainEvent
+    case class ItemsAdded(id: InvoiceId, lineItems: Seq[LineItem]) extends InvoiceDomainEvent
+    case class ItemsDeleted(id: InvoiceId, itemIds: Seq[ItemId]) extends InvoiceDomainEvent
+    case class InvoiceCanceled(id: InvoiceId) extends InvoiceDomainEvent
+    case class InvoiceIssued(id: InvoiceId) extends InvoiceDomainEvent
+  }
+
 }

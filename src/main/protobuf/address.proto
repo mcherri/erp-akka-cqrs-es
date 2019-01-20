@@ -16,21 +16,16 @@
  * You should have received a copy of the GNU General Public License
  * along with erp-akka-cqrs-es.  If not, see <https://www.gnu.org/licenses/>.
  */
-package mcherri.erp.akka.cqrs.es.model
 
-import mcherri.erp.akka.cqrs.es.UnitSpec
+syntax = "proto3";
+package mcherri.erp.akka.cqrs.es.model.protobuf;
 
-class UserSpec extends UnitSpec {
+import "scalapb/scalapb.proto";
 
-  "A user" should "be disabled once" in {
+option (scalapb.options) = {
+    single_file: true
+};
 
-    val stateOrError = for (
-      id <- PersonId(1);
-      state1 <- UninitializedUser.init(id);
-      state2 <- state1.disable();
-      state3 <- state2.disable()
-    ) yield state3
-
-    assert(stateOrError.isBad)
-  }
+message Address {
+    string street = 1;
 }

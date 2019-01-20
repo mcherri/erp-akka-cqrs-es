@@ -16,21 +16,16 @@
  * You should have received a copy of the GNU General Public License
  * along with erp-akka-cqrs-es.  If not, see <https://www.gnu.org/licenses/>.
  */
-package mcherri.erp.akka.cqrs.es.model
+package mcherri.erp.akka.cqrs.es
 
-import mcherri.erp.akka.cqrs.es.UnitSpec
+import akka.actor.ActorSystem
+import akka.testkit.{ImplicitSender, TestKit}
+import org.scalatest._
 
-class UserSpec extends UnitSpec {
+abstract class ActorUnitSpec extends TestKit(ActorSystem("erp-akka-cqrs-es-spec"))
+  with FlatSpecLike with ImplicitSender with Matchers with BeforeAndAfterAll {
 
-  "A user" should "be disabled once" in {
-
-    val stateOrError = for (
-      id <- PersonId(1);
-      state1 <- UninitializedUser.init(id);
-      state2 <- state1.disable();
-      state3 <- state2.disable()
-    ) yield state3
-
-    assert(stateOrError.isBad)
+  override def afterAll: Unit = {
+    TestKit.shutdownActorSystem(system)
   }
 }

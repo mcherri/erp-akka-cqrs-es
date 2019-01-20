@@ -16,21 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with erp-akka-cqrs-es.  If not, see <https://www.gnu.org/licenses/>.
  */
-package mcherri.erp.akka.cqrs.es.model
 
-import mcherri.erp.akka.cqrs.es.UnitSpec
+addSbtPlugin("com.thesamet" % "sbt-protoc" % "0.99.19")
 
-class UserSpec extends UnitSpec {
-
-  "A user" should "be disabled once" in {
-
-    val stateOrError = for (
-      id <- PersonId(1);
-      state1 <- UninitializedUser.init(id);
-      state2 <- state1.disable();
-      state3 <- state2.disable()
-    ) yield state3
-
-    assert(stateOrError.isBad)
-  }
-}
+libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.8.4"

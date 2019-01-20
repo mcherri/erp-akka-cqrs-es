@@ -21,227 +21,191 @@ package mcherri.erp.akka.cqrs.es.model
 import java.util.UUID
 
 import mcherri.erp.akka.cqrs.es.UnitSpec
-import mcherri.erp.akka.cqrs.es.model.ItemId.ItemIdError
-import mcherri.erp.akka.cqrs.es.utils.RichOr._
 import org.scalactic.{Every, Or}
-import org.sisioh.baseunits.scala.money.Money
+import org.sisioh.baseunits.scala.money
+
+import scala.collection.immutable.Seq
 
 class InvoiceSpec extends UnitSpec {
 
-  trait CommonFixture {
-    protected val oneEur = Money(BigDecimal("1.00"), Money.EUR)
-  }
-
   trait LineItemFixture extends CommonFixture {
-    protected val negativeEur = Money(BigDecimal("-2.00"), Money.EUR)
-    protected val zeroEur = Money(BigDecimal("0.00"), Money.EUR)
-    protected val positiveEur = Money(BigDecimal("2.00"), Money.EUR)
+    protected val negativeEur = money.Money(BigDecimal("-2.00"), money.Money.EUR)
+    protected val zeroEur = money.Money(BigDecimal("0.00"), money.Money.EUR)
+    protected val positiveEur = money.Money(BigDecimal("2.00"), money.Money.EUR)
     protected val id = ItemId(UUID.randomUUID())
-    protected val item: Item Or Every[ItemIdError] = id.map(Item(_, "", "", oneEur, 1))
+    protected val item: Item Or Every[Error] = id.flatMap(id => Item(id, "", "", oneEur, BigDecimal("1")))
   }
 
   "A line item" should "reject negative price value" in new LineItemFixture {
-    assert(item.flatMap(LineItem(_, negativeEur, 1)).isBad)
+    item.flatMap(item => LineItem(item.id, item.code, negativeEur, 1)) shouldBe 'bad
   }
 
   it should "accept zero price value" in new LineItemFixture {
-    assert(item.flatMap(LineItem(_, zeroEur, 1)).isGood)
+    item.flatMap(item => LineItem(item.id, item.code, zeroEur, 1)) shouldBe 'good
   }
 
   it should "accept positive price value" in new LineItemFixture {
-    assert(item.flatMap(LineItem(_, positiveEur, 1)).isGood)
+    item.flatMap(item => LineItem(item.id, item.code, positiveEur, 1)) shouldBe 'good
   }
 
   it should "accept positive quantity" in new LineItemFixture {
-    assert(item.flatMap(LineItem(_, oneEur, 1)).isGood)
+    item.flatMap(item => LineItem(item.id, item.code, oneEur, 1)) shouldBe 'good
   }
 
   it should "reject zero quantity" in new LineItemFixture {
-    assert(item.flatMap(LineItem(_, oneEur, 0)).isBad)
+    item.flatMap(item => LineItem(item.id, item.code, oneEur, 0)) shouldBe 'bad
   }
 
   it should "reject negative quantity" in new LineItemFixture {
-    assert(item.flatMap(LineItem(_, oneEur, -1)).isBad)
+    item.flatMap(item => LineItem(item.id, item.code, oneEur, -1)) shouldBe 'bad
   }
 
-  it should "accept quantity <= remainingQuantity" in new LineItemFixture {
-    assert(item.flatMap(LineItem(_, oneEur, 1)).isGood)
-    assert(id.flatMap(id => LineItem(Item(id, "", "", oneEur, 2), oneEur, 1)).isGood)
+  // TODO: Re-enable this test once we have the inventory Saga
+  it should "accept quantity <= remainingQuantity" ignore new LineItemFixture {
+    item.flatMap(item => LineItem(item.id, item.code, oneEur, 1)) shouldBe 'good
+    id.flatMap(id => LineItem(id, "", oneEur, 1)) shouldBe 'good
   }
 
-  it should "reject quantity > remainingQuantity" in new LineItemFixture {
-    assert(item.flatMap(LineItem(_, oneEur, 2)).isBad)
-  }
-
-  trait InvoiceFixture extends CommonFixture {
-    private val id = InvoiceId(UUID.randomUUID())
-    private val client = PersonId(1).map(Client)
-    protected val emptyInvoice: Or[Invoice, Every[Error]] = for (
-      id1 <- id;
-      client1 <- client;
-      invoice1 <- Invoice(id1, client1)
-    ) yield invoice1
-    protected val lineItemSeq: Or[Seq[LineItem], Every[Error]] = (1 to 10).map { i =>
-      val price = oneEur.times(Math.random() * 100)
-      val quantity = Math.random() * 100 + 1
-      ItemId(UUID.randomUUID()).flatMap(id => LineItem(Item(id, s"abc$i", "description $i", price, quantity + 11), price, quantity))
-    }.sequence()
-    protected val invoice: Invoice Or Every[Error] = for (
-      invoice1 <- emptyInvoice;
-      lineItemSeq1 <- lineItemSeq;
-      invoice2 <- invoice1.add(lineItemSeq1)
-    ) yield invoice2
+  // TODO: Re-enable this test once we have the inventory Saga
+  it should "reject quantity > remainingQuantity" ignore new LineItemFixture {
+    item.flatMap(item => LineItem(item.id, item.code, oneEur, 2)) shouldBe 'bad
   }
 
   "An invoice" should "allow adding new items" in new InvoiceFixture {
-    assert(invoice.isGood)
+    invoice shouldBe 'good
   }
 
   it should "merge line items having the same item" in new InvoiceFixture {
-    private val item = lineItemSeq.flatMap(_ (4).copy(quantity = 10))
-    private val anotherLineItemSeq = item.map(Seq(_))
-    private val result: Invoice Or Every[Error] = for (
-      invoice1 <- invoice;
+    private val result = for (
+      state1 <- invoice;
       lineItemSeq1 <- anotherLineItemSeq;
-      invoice2 <- invoice1.add(lineItemSeq1)
-    ) yield invoice2
+      state2 <- state1.add(lineItemSeq1)
+    ) yield state2
 
-    assert(result.isGood)
-    result.foreach { invoice1 =>
-      assert(invoice1.count == 10)
+    result shouldBe 'good
+    result.foreach {
+      case state: DraftInvoice =>
+      state.itemLines should have size 10
     }
   }
 
   it should "allow deleting existing items" in new InvoiceFixture {
-    private val itemIds = lineItemSeq.map(l => Seq(l(5).item.id, l(8).item.id))
     private val result = for (
-      invoice1 <- invoice;
-      itemIds1 <- itemIds;
-      invoice2 <- invoice1.delete(itemIds1)
-    ) yield invoice2
+      state1 <- invoice;
+      itemIds1 <- itemIdsToDelete;
+      state2 <- state1.delete(itemIds1)
+    ) yield state2
 
-    assert(result.isGood)
-    result.foreach { invoice1 =>
-      assert(invoice1.count == 8)
+    result shouldBe 'good
+    result.foreach {
+      case state: DraftInvoice =>
+        state.itemLines should have size 8
     }
   }
 
   it should "disallow deleting non-existing items" in new InvoiceFixture {
     private val itemId = ItemId(UUID.randomUUID())
-    private val result = for (
-      invoice1 <- invoice;
-      itemId1 <- itemId;
-      invoice2 <- invoice1.delete(Seq(itemId1))
-    ) yield invoice2
 
-    assert(result.isBad)
+    private val result = for (
+      state1 <- invoice;
+      itemId1 <- itemId;
+      state2 <- state1.delete(Seq(itemId1))
+    ) yield state2
+
+    result shouldBe 'bad
   }
 
   it can "be canceled" in new InvoiceFixture {
-    private val result = for (
-      invoice1 <- invoice;
-      invoice2 <- invoice1.cancel()
-    ) yield invoice2
-
-    assert(result.isGood)
+    canceledInvoice shouldBe 'good
   }
 
-  it should "be canceled once" in new  InvoiceFixture {
+  it can "be canceled even if empty" in new InvoiceFixture {
     private val result = for (
-      invoice1 <- invoice;
-      invoice2 <- invoice1.cancel();
-      invoice3 <- invoice2.cancel()
-    ) yield invoice3
+      state1 <- emptyInvoice;
+      state2 <- state1.cancel()
+    ) yield state2
 
-    assert(result.isBad)
+    result shouldBe 'good
+  }
+
+  it should "be canceled once" in new InvoiceFixture {
+    private val result = for (
+      state1 <- canceledInvoice;
+      state2 <- state1.cancel()
+    ) yield state2
+
+    result shouldBe 'bad
   }
 
   it should "not allow adding items when canceled" in new InvoiceFixture {
-    private val item = lineItemSeq.flatMap(_ (4).copy(quantity = 10))
-    private val anotherLineItemSeq = item.map(Seq(_))
-    private val result: Invoice Or Every[Error] = for (
-      invoice1 <- invoice;
-      invoice2 <- invoice1.cancel();
+    private val result = for (
+      state1 <- canceledInvoice;
       lineItemSeq1 <- anotherLineItemSeq;
-      invoice3 <- invoice2.add(lineItemSeq1)
-    ) yield invoice3
+      state2 <- state1.add(lineItemSeq1)
+    ) yield state2
 
-    assert(result.isBad)
+    result shouldBe 'bad
   }
 
   it should "not allow deleting items when canceled" in new InvoiceFixture {
-    private val itemIds = lineItemSeq.map(l => Seq(l(5).item.id, l(8).item.id))
     private val result = for (
-      invoice1 <- invoice;
-      invoice2 <- invoice1.cancel();
-      itemIds1 <- itemIds;
-      invoice3 <- invoice2.delete(itemIds1)
-    ) yield invoice3
+      state1 <- canceledInvoice;
+      itemIds1 <- itemIdsToDelete;
+      state2 <- state1.delete(itemIds1)
+    ) yield state2
 
-    assert(result.isBad)
+    result shouldBe 'bad
   }
 
   it can "be issued" in new InvoiceFixture {
-    private val result = for (
-      invoice1 <- invoice;
-      invoice2 <- invoice1.issue()
-    ) yield invoice2
-
-    assert(result.isGood)
+    issuedInvoice shouldBe 'good
   }
 
   it should "be issued once" in new InvoiceFixture {
     private val result = for (
-      invoice1 <- invoice;
-      invoice2 <- invoice1.issue();
-      invoice3 <- invoice2.issue()
-    ) yield invoice3
+      state1 <- issuedInvoice;
+      state2 <- state1.issue()
+    ) yield state2
 
-    assert(result.isBad)
+    result shouldBe 'bad
   }
 
   it should "have a least one line item when being issued" in new InvoiceFixture {
     private val result = for (
-      invoice1 <- emptyInvoice;
-      invoice2 <- invoice1.issue()
-    ) yield invoice2
+      state1 <- emptyInvoice;
+      state2 <- state1.issue()
+    ) yield state2
 
-    assert(result.isBad)
+    result shouldBe 'bad
   }
 
   it should "not allow adding items after being issued" in new InvoiceFixture {
-    private val item = lineItemSeq.flatMap(_ (4).copy(quantity = 10))
-    private val anotherLineItemSeq = item.map(Seq(_))
-    private val result: Invoice Or Every[Error] = for (
-      invoice1 <- invoice;
-      invoice2 <- invoice1.issue();
+    private val result = for (
+      state1 <- issuedInvoice;
       lineItemSeq1 <- anotherLineItemSeq;
-      invoice3 <- invoice2.add(lineItemSeq1)
-    ) yield invoice3
+      state2 <- state1.add(lineItemSeq1)
+    ) yield state2
 
-    assert(result.isBad)
+    result shouldBe 'bad
   }
 
   it should "not allow deleting items after being issued" in new InvoiceFixture {
-    private val itemIds = lineItemSeq.map(l => Seq(l(5).item.id, l(8).item.id))
     private val result = for (
-      invoice1 <- invoice;
-      invoice2 <- invoice1.issue();
-      itemIds1 <- itemIds;
-      invoice3 <- invoice2.delete(itemIds1)
-    ) yield invoice3
+      state1 <- issuedInvoice;
+      itemIds1 <- itemIdsToDelete;
+      state2 <- state1.delete(itemIds1)
+    ) yield state2
 
-    assert(result.isBad)
+    result shouldBe 'bad
   }
 
   it can "be cancel after being issued" in new InvoiceFixture {
     private val result = for (
-      invoice1 <- invoice;
-      invoice2 <- invoice1.issue();
-      invoice3 <- invoice2.cancel()
-    ) yield invoice3
+      state1 <- issuedInvoice;
+      state2 <- state1.cancel()
+    ) yield state2
 
-    assert(result.isGood)
+    result shouldBe 'good
   }
 
 }
