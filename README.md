@@ -36,26 +36,32 @@ Some Useful Commands
     ```bash
     sbt clean test
     ```
+
 -   To test with coverage:
     ```bash
     sbt clean coverage test
     ```
+
 -   To generate coverage report:
     ```bash
     sbt coverageReport
     ```
+
 -   To view dependency graph:
     ```bash
     sbt dependencyBrowseGraph
     ```
+
 -   To view dependency graph for testing:
     ```bash
     sbt test:dependencyBrowseGraph
     ```
+
 -   To check is the dependencies are latest:
     ```bash
     sbt dependencyUpdates
     ```
+
 -   To check is the dependencies are latest for testing:
     ```bash
     sbt test:dependencyUpdates
