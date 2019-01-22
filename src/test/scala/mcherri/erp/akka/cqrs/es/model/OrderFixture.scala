@@ -23,29 +23,29 @@ import java.util.UUID
 import mcherri.erp.akka.cqrs.es.model
 import org.scalactic.{Every, Or}
 
-trait InvoiceFixture extends CommonFixture {
-  protected val id: Or[InvoiceId, Every[InvoiceId.InvoiceIdError]] = InvoiceId(UUID.randomUUID())
+trait OrderFixture extends CommonFixture {
+  protected val id: Or[OrderId, Every[OrderId.OrderIdError]] = OrderId(UUID.randomUUID())
   protected val client: Or[Client, Every[Error]] = PersonId(1).flatMap(id => model.Client(id))
 
-  protected val emptyInvoice: Or[InvoiceState, Every[Error]] = for (
+  protected val emptyOrder: Or[OrderState, Every[Error]] = for (
     id1 <- id;
     client1 <- client;
-    state <- UninitializedInvoice.init(id1, client1)
+    state <- UninitializedOrder$.init(id1, client1)
   ) yield state
 
-  protected val invoice: Or[InvoiceState, Every[Error]] = for (
-    state1 <- emptyInvoice;
+  protected val order: Or[OrderState, Every[Error]] = for (
+    state1 <- emptyOrder;
     lineItemSeq1 <- lineItemSeq;
     state2 <- state1.add(lineItemSeq1)
   ) yield state2
 
-  protected val canceledInvoice: Or[InvoiceState, Every[Error]] = for (
-    state1 <- invoice;
+  protected val canceledOrder: Or[OrderState, Every[Error]] = for (
+    state1 <- order;
     state2 <- state1.cancel()
   ) yield state2
 
-  protected val issuedInvoice: Or[InvoiceState, Every[Error]] = for (
-    state1 <- invoice;
+  protected val issuedOrder: Or[OrderState, Every[Error]] = for (
+    state1 <- order;
     state2 <- state1.issue()
   ) yield state2
 }

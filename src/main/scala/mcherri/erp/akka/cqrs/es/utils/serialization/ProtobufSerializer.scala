@@ -30,8 +30,8 @@ import scalapb.{GeneratedMessage, Message}
  */
 class ProtobufSerializer extends Serializer with Packer {
   // TODO: Load packers dynamically from application.conf
-  private val packers = Seq(MessagePacker(), InvoiceCommandPacker(), InvoiceDomainEventPacker(),
-    InvoiceStatePacker(), InvoiceErrorPacker(), ErrorsPacker(), ScalaticPacker(this), DummiesPacker())
+  private val packers = Seq(MessagePacker(), OrderCommandPacker(), OrderDomainEventPacker(),
+    OrderStatePacker(), OrderErrorPacker(), ErrorsPacker(), ScalaticPacker(this), DummiesPacker())
 
   override def identifier: Int = 399697686
 

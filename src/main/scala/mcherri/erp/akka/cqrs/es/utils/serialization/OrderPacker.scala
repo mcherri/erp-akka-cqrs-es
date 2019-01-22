@@ -21,33 +21,33 @@ package mcherri.erp.akka.cqrs.es.utils.serialization
 import java.util.{Currency, UUID}
 
 import mcherri.erp.akka.cqrs.es.model._
-import mcherri.erp.akka.cqrs.es.model.protobuf.invoice
+import mcherri.erp.akka.cqrs.es.model.protobuf.order
 import mcherri.erp.akka.cqrs.es.utils.RichOr._
 import org.scalactic.{Every, Or}
 import org.sisioh.baseunits.scala.money.Money
 
 import scala.collection.immutable
 
-trait InvoicePacker extends Packer {
+trait OrderPacker extends Packer {
   protected def toItemIds(protobufIds: immutable.Seq[String]): Or[immutable.Seq[ItemId], Every[ItemId.ItemIdError]] = {
     protobufIds.map { itemId =>
       ItemId(UUID.fromString(itemId))
     }.sequence()
   }
 
-  protected def toLineItems(lineItems: immutable.Seq[invoice.LineItem]): Or[immutable.Seq[LineItem], Every[Error]] = {
+  protected def toLineItems(lineItems: immutable.Seq[order.LineItem]): Or[immutable.Seq[LineItem], Every[Error]] = {
     lineItems.collect {
-      case invoice.LineItem(itemId, code, Some(protobuf.common.Money(amount, currency)), quantity) =>
+      case order.LineItem(itemId, code, Some(protobuf.common.Money(amount, currency)), quantity) =>
         ItemId(UUID.fromString(itemId)).flatMap { itemId =>
           LineItem(itemId, code, Money(BigDecimal(amount), Currency.getInstance(currency)), BigDecimal(quantity))
         }
     }.sequence()
   }
 
-  protected def toProtobufLineItems(lineItems: immutable.Seq[LineItem]): immutable.Seq[invoice.LineItem] = {
+  protected def toProtobufLineItems(lineItems: immutable.Seq[LineItem]): immutable.Seq[order.LineItem] = {
     lineItems.map {
       case LineItem(ItemId(itemId), code, money, quantity) =>
-        protobuf.invoice.LineItem(itemId.toString, code,
+        protobuf.order.LineItem(itemId.toString, code,
           Some(money.toProtobuf), quantity.toString())
     }
   }

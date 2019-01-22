@@ -30,10 +30,10 @@ option (scalapb.options) = {
     import: "mcherri.erp.akka.cqrs.es.model.protobuf.common.DomainEvent"
     import: "mcherri.erp.akka.cqrs.es.model.protobuf.common.State"
     import: "mcherri.erp.akka.cqrs.es.model.protobuf.error.Error"
-    preamble: "sealed trait InvoiceCommand extends Command"
-    preamble: "sealed trait InvoiceDomainEvent extends DomainEvent"
-    preamble: "sealed trait InvoiceState extends State"
-    preamble: "sealed trait InvoiceError extends Error"
+    preamble: "sealed trait OrderCommand extends Command"
+    preamble: "sealed trait OrderDomainEvent extends DomainEvent"
+    preamble: "sealed trait OrderState extends State"
+    preamble: "sealed trait OrderError extends Error"
 };
 
 message LineItem {
@@ -43,106 +43,106 @@ message LineItem {
     string quantity = 4;
 }
 
-// InvoiceCommand
-message CreateInvoice {
-    option (scalapb.message).extends = "InvoiceCommand";
+// OrderCommand
+message CreateOrder {
+    option (scalapb.message).extends = "OrderCommand";
 
     Client client = 2 [(scalapb.field).no_box = true];
 }
 
 message AddItems {
-    option (scalapb.message).extends = "InvoiceCommand";
+    option (scalapb.message).extends = "OrderCommand";
 
     repeated LineItem line_items = 2 [(scalapb.field).collection_type = "scala.collection.immutable.Seq"];
 }
 
 message DeleteItems {
-    option (scalapb.message).extends = "InvoiceCommand";
+    option (scalapb.message).extends = "OrderCommand";
 
     repeated string item_ids = 2 [(scalapb.field).collection_type = "scala.collection.immutable.Seq"];
 }
 
-message CancelInvoice {
-    option (scalapb.message).extends = "InvoiceCommand";
+message CancelOrder {
+    option (scalapb.message).extends = "OrderCommand";
 }
 
-message IssueInvoice {
-    option (scalapb.message).extends = "InvoiceCommand";
+message IssueOrder {
+    option (scalapb.message).extends = "OrderCommand";
 }
 
-// InvoiceDomainEvent
-message InvoiceCreated {
-    option (scalapb.message).extends = "InvoiceDomainEvent";
+// OrderDomainEvent
+message OrderCreated {
+    option (scalapb.message).extends = "OrderDomainEvent";
 
     string id = 1;
     Client client = 2 [(scalapb.field).no_box = true];
 }
 
 message ItemsAdded {
-    option (scalapb.message).extends = "InvoiceDomainEvent";
+    option (scalapb.message).extends = "OrderDomainEvent";
 
     string id = 1;
     repeated LineItem line_items = 2 [(scalapb.field).collection_type = "scala.collection.immutable.Seq"];
 }
 
 message ItemsDeleted {
-    option (scalapb.message).extends = "InvoiceDomainEvent";
+    option (scalapb.message).extends = "OrderDomainEvent";
 
     string id = 1;
     repeated string item_ids = 2 [(scalapb.field).collection_type = "scala.collection.immutable.Seq"];
 }
 
-message InvoiceCanceled {
-    option (scalapb.message).extends = "InvoiceDomainEvent";
+message OrderCanceled {
+    option (scalapb.message).extends = "OrderDomainEvent";
 
     string id = 1;
 }
 
-message InvoiceIssued {
-    option (scalapb.message).extends = "InvoiceDomainEvent";
+message OrderIssued {
+    option (scalapb.message).extends = "OrderDomainEvent";
 
     string id = 1;
 }
 
-// InvoiceState
-message UninitializedInvoice {
-    option (scalapb.message).extends = "InvoiceState";
+// OrderState
+message UninitializedOrder {
+    option (scalapb.message).extends = "OrderState";
 }
 
-message EmptyInvoice {
-    option (scalapb.message).extends = "InvoiceState";
+message EmptyOrder {
+    option (scalapb.message).extends = "OrderState";
 
     string id = 1;
     Client client = 2 [(scalapb.field).no_box = true];
 }
 
-message DraftInvoice {
-    option (scalapb.message).extends = "InvoiceState";
+message DraftOrder {
+    option (scalapb.message).extends = "OrderState";
 
     string id = 1;
     Client client = 2 [(scalapb.field).no_box = true];
     repeated LineItem line_items = 3 [(scalapb.field).collection_type = "scala.collection.immutable.Seq"];
 }
 
-message CanceledInvoice {
-    option (scalapb.message).extends = "InvoiceState";
+message CanceledOrder {
+    option (scalapb.message).extends = "OrderState";
 
     string id = 1;
 }
 
-message IssuedInvoice {
-    option (scalapb.message).extends = "InvoiceState";
+message IssuedOrder {
+    option (scalapb.message).extends = "OrderState";
 
     string id = 1;
 }
 
-message CanceledIssuedInvoice {
-    option (scalapb.message).extends = "InvoiceState";
+message CanceledIssuedOrder {
+    option (scalapb.message).extends = "OrderState";
 
     string id = 1;
 }
 
-// InvoiceError
+// OrderError
 message ItemIdsNotFoundError {
     option (scalapb.message).extends = "Error";
 
@@ -162,13 +162,13 @@ message AlreadyIssuedError {
     string id = 1;
 }
 
-message EmptyInvoiceError {
+message EmptyOrderError {
     option (scalapb.message).extends = "Error";
 
     string id = 1;
 }
 
-message UninitializedInvoiceError {
+message UninitializedOrderError {
     option (scalapb.message).extends = "Error";
 }
 

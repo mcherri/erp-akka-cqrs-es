@@ -20,9 +20,9 @@ package mcherri.erp.akka.cqrs.es.model
 
 import java.util.UUID
 
-import mcherri.erp.akka.cqrs.es.model.Invoice.Protocol._
-import mcherri.erp.akka.cqrs.es.model.Invoice._
-import mcherri.erp.akka.cqrs.es.model.InvoiceId.InvoiceIdError
+import mcherri.erp.akka.cqrs.es.model.Order.Protocol._
+import mcherri.erp.akka.cqrs.es.model.Order._
+import mcherri.erp.akka.cqrs.es.model.OrderId.OrderIdError
 import mcherri.erp.akka.cqrs.es.model.LineItem.LineItemError
 import org.scalactic.Accumulation._
 import org.scalactic._
@@ -31,24 +31,24 @@ import mcherri.erp.akka.cqrs.es.utils.RichOr._
 
 import scala.collection.immutable.Seq
 
-abstract case class InvoiceId private[InvoiceId](value: UUID) {
-  def copy(value: UUID = value): InvoiceId Or Every[InvoiceIdError] = InvoiceId.apply(value)
+abstract case class OrderId private[OrderId](value: UUID) {
+  def copy(value: UUID = value): OrderId Or Every[OrderIdError] = OrderId.apply(value)
 }
 
-object InvoiceId {
+object OrderId {
 
-  def apply(value: UUID): InvoiceId Or Every[InvoiceIdError] = {
+  def apply(value: UUID): OrderId Or Every[OrderIdError] = {
     if (value.version() == 4) {
-      Good(new InvoiceId(value) {})
+      Good(new OrderId(value) {})
     } else {
       Bad(One(UuidError(value)))
     }
   }
 
-  sealed abstract class InvoiceIdError(message: String) extends Error(message)
+  sealed abstract class OrderIdError(message: String) extends Error(message)
 
   case class UuidError(value: UUID)
-    extends InvoiceIdError(s"InvoiceId with UUID = $value is not version 4 UUID")
+    extends OrderIdError(s"OrderId with UUID = $value is not version 4 UUID")
 }
 
 abstract case class LineItem private[LineItem](itemId: ItemId, code: String,
@@ -90,7 +90,7 @@ object LineItem {
 }
 
 /*
- * The code below implements invoice states using the workflow below:
+ * The code below implements order states using the workflow below:
  *
  *                                                Add
  *            +---------------+ Init  +-------+  Items   +-------------+
@@ -109,15 +109,15 @@ object LineItem {
  *                                End <-----+  Issued  +<------------+
  *                                          +----------+
  *
- * P.S: No Invoice case class is needed in this case.
+ * P.S: No Order case class is needed in this case.
  */
-trait InvoiceState extends State {
-  override type StateOrErrors = InvoiceState Or Every[Error]
-  override type DomainEventOrErrors = InvoiceDomainEvent Or Every[Error]
+trait OrderState extends State {
+  override type StateOrErrors = OrderState Or Every[Error]
+  override type DomainEventOrErrors = OrderDomainEvent Or Every[Error]
 
-  def canInit(id: InvoiceId, client: Client): DomainEventOrErrors
+  def canInit(id: OrderId, client: Client): DomainEventOrErrors
 
-  def init(id: InvoiceId, client: Client): StateOrErrors
+  def init(id: OrderId, client: Client): StateOrErrors
 
   def canAdd(newLines: Seq[LineItem]): DomainEventOrErrors
 
@@ -136,11 +136,11 @@ trait InvoiceState extends State {
   def issue(): StateOrErrors
 }
 
-// FIXME: AbstractInvoiceState should take an Every[InvoiceError]
-abstract class AbstractInvoiceState(defaultError: InvoiceError) extends InvoiceState {
-  override def canInit(id: InvoiceId, client: Client): DomainEventOrErrors = Bad(One(defaultError))
+// FIXME: AbstractOrderState should take an Every[OrderError]
+abstract class AbstractOrderState(defaultError: OrderError) extends OrderState {
+  override def canInit(id: OrderId, client: Client): DomainEventOrErrors = Bad(One(defaultError))
 
-  override def init(id: InvoiceId, client: Client): StateOrErrors = Bad(One(defaultError))
+  override def init(id: OrderId, client: Client): StateOrErrors = Bad(One(defaultError))
 
   override def canAdd(newLines: Seq[LineItem]): DomainEventOrErrors = Bad(One(defaultError))
 
@@ -159,38 +159,38 @@ abstract class AbstractInvoiceState(defaultError: InvoiceError) extends InvoiceS
   override def issue(): StateOrErrors = Bad(One(defaultError))
 }
 
-case object UninitializedInvoice extends AbstractInvoiceState(Invoice.UninitializedInvoiceError) {
+case object UninitializedOrder$ extends AbstractOrderState(Order.UninitializedOrderError$) {
   // TODO: Maybe we need to validate the parameters here.
-  override def canInit(id: InvoiceId, client: Client): DomainEventOrErrors =
-    Good(InvoiceCreated(id, client))
+  override def canInit(id: OrderId, client: Client): DomainEventOrErrors =
+    Good(OrderCreated(id, client))
 
-  override def init(id: InvoiceId, client: Client): StateOrErrors = {
-    canInit(id, client).map(_ => EmptyInvoice(id, client))
+  override def init(id: OrderId, client: Client): StateOrErrors = {
+    canInit(id, client).map(_ => EmptyOrder(id, client))
   }
 }
 
-case class EmptyInvoice(id: InvoiceId, client: Client) extends AbstractInvoiceState(EmptyInvoiceError(id)) {
-  override def canInit(id: InvoiceId, client: Client): UninitializedInvoice.DomainEventOrErrors = Bad(One(AlreadyInitializedError))
+case class EmptyOrder(id: OrderId, client: Client) extends AbstractOrderState(EmptyOrderError(id)) {
+  override def canInit(id: OrderId, client: Client): UninitializedOrder$.DomainEventOrErrors = Bad(One(AlreadyInitializedError))
 
-  override def init(id: InvoiceId, client: Client): StateOrErrors = Bad(One(AlreadyInitializedError))
+  override def init(id: OrderId, client: Client): StateOrErrors = Bad(One(AlreadyInitializedError))
 
   override def add(newLines: Seq[LineItem]): StateOrErrors = canAdd(newLines).map { _ =>
     if (newLines.isEmpty) {
       this
     } else {
-      DraftInvoice(id, client, newLines)
+      DraftOrder(id, client, newLines)
     }
   }
 
   override def canAdd(newLines: Seq[LineItem]): DomainEventOrErrors = Good(ItemsAdded(id, newLines))
 
-  override def canCancel: DomainEventOrErrors = Good(InvoiceCanceled(id))
+  override def canCancel: DomainEventOrErrors = Good(OrderCanceled(id))
 
-  override def cancel(): StateOrErrors = canCancel.map(_ => CanceledInvoice(id))
+  override def cancel(): StateOrErrors = canCancel.map(_ => CanceledOrder(id))
 }
 
-case class DraftInvoice(id: InvoiceId, client: Client,
-                        itemLines: Seq[LineItem]) extends AbstractInvoiceState(AlreadyInitializedError) {
+case class DraftOrder(id: OrderId, client: Client,
+                      itemLines: Seq[LineItem]) extends AbstractOrderState(AlreadyInitializedError) {
   override def add(newLines: Seq[LineItem]): StateOrErrors =
     for (
       _ <- canAdd(newLines);
@@ -213,7 +213,7 @@ case class DraftInvoice(id: InvoiceId, client: Client,
 
     canDelete(itemIds).map { _ =>
       if (newItemLines.isEmpty) {
-        EmptyInvoice(id, client)
+        EmptyOrder(id, client)
       } else {
         copy(itemLines = newItemLines)
       }
@@ -232,52 +232,52 @@ case class DraftInvoice(id: InvoiceId, client: Client,
 
   }
 
-  override def cancel(): StateOrErrors = canCancel.map(_ => CanceledInvoice(id))
+  override def cancel(): StateOrErrors = canCancel.map(_ => CanceledOrder(id))
 
-  override def canCancel: DomainEventOrErrors = Good(InvoiceCanceled(id))
+  override def canCancel: DomainEventOrErrors = Good(OrderCanceled(id))
 
-  override def issue(): StateOrErrors = canIssue.map(_ => IssuedInvoice(id))
+  override def issue(): StateOrErrors = canIssue.map(_ => IssuedOrder(id))
 
-  override def canIssue: DomainEventOrErrors = Good(InvoiceIssued(id))
+  override def canIssue: DomainEventOrErrors = Good(OrderIssued(id))
 }
 
-case class CanceledInvoice(id: InvoiceId) extends AbstractInvoiceState(AlreadyCanceledError(id))
+case class CanceledOrder(id: OrderId) extends AbstractOrderState(AlreadyCanceledError(id))
 
-case class IssuedInvoice(id: InvoiceId) extends AbstractInvoiceState(AlreadyIssuedError(id)) {
-  override def cancel(): StateOrErrors = canCancel.map(_ => CanceledIssuedInvoice(id))
+case class IssuedOrder(id: OrderId) extends AbstractOrderState(AlreadyIssuedError(id)) {
+  override def cancel(): StateOrErrors = canCancel.map(_ => CanceledIssuedOrder(id))
 
-  override def canCancel: DomainEventOrErrors = Good(InvoiceCanceled(id))
+  override def canCancel: DomainEventOrErrors = Good(OrderCanceled(id))
 }
 
-case class CanceledIssuedInvoice(id: InvoiceId) extends AbstractInvoiceState(AlreadyCanceledError(id))
+case class CanceledIssuedOrder(id: OrderId) extends AbstractOrderState(AlreadyCanceledError(id))
 
-object Invoice {
+object Order {
 
-  sealed abstract class InvoiceError(message: String) extends Error(message)
+  sealed abstract class OrderError(message: String) extends Error(message)
 
-  case class ItemIdsNotFoundError(id: InvoiceId, itemIds: Seq[ItemId])
-    extends InvoiceError(s"Invoice with id = $id does not contain one of these item ids (${itemIds.mkString(", ")})")
+  case class ItemIdsNotFoundError(id: OrderId, itemIds: Seq[ItemId])
+    extends OrderError(s"Order with id = $id does not contain one of these item ids (${itemIds.mkString(", ")})")
 
-  case class AlreadyCanceledError(id: InvoiceId)
-    extends InvoiceError(s"Invoice with id = $id does is already canceled")
+  case class AlreadyCanceledError(id: OrderId)
+    extends OrderError(s"Order with id = $id does is already canceled")
 
-  case class AlreadyIssuedError(id: InvoiceId)
-    extends InvoiceError(s"Invoice with id = $id does is already issued")
+  case class AlreadyIssuedError(id: OrderId)
+    extends OrderError(s"Order with id = $id does is already issued")
 
-  case class EmptyInvoiceError(id: InvoiceId)
-    extends InvoiceError(s"Invoice with id = $id does is empty")
+  case class EmptyOrderError(id: OrderId)
+    extends OrderError(s"Order with id = $id does is empty")
 
-  case object UninitializedInvoiceError extends InvoiceError("Invoice is not initialized yet")
+  case object UninitializedOrderError$ extends OrderError("Order is not initialized yet")
 
-  case object AlreadyInitializedError extends InvoiceError("Invoice is already initialized")
+  case object AlreadyInitializedError extends OrderError("Order is already initialized")
 
   object Protocol {
-    sealed trait InvoiceDomainEvent extends DomainEvent
-    case class InvoiceCreated(id: InvoiceId, client: Client) extends InvoiceDomainEvent
-    case class ItemsAdded(id: InvoiceId, lineItems: Seq[LineItem]) extends InvoiceDomainEvent
-    case class ItemsDeleted(id: InvoiceId, itemIds: Seq[ItemId]) extends InvoiceDomainEvent
-    case class InvoiceCanceled(id: InvoiceId) extends InvoiceDomainEvent
-    case class InvoiceIssued(id: InvoiceId) extends InvoiceDomainEvent
+    sealed trait OrderDomainEvent extends DomainEvent
+    case class OrderCreated(id: OrderId, client: Client) extends OrderDomainEvent
+    case class ItemsAdded(id: OrderId, lineItems: Seq[LineItem]) extends OrderDomainEvent
+    case class ItemsDeleted(id: OrderId, itemIds: Seq[ItemId]) extends OrderDomainEvent
+    case class OrderCanceled(id: OrderId) extends OrderDomainEvent
+    case class OrderIssued(id: OrderId) extends OrderDomainEvent
   }
 
 }

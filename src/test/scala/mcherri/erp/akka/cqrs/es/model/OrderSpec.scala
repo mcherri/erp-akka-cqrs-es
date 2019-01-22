@@ -26,7 +26,7 @@ import org.sisioh.baseunits.scala.money
 
 import scala.collection.immutable.Seq
 
-class InvoiceSpec extends UnitSpec {
+class OrderSpec extends UnitSpec {
 
   trait LineItemFixture extends CommonFixture {
     protected val negativeEur = money.Money(BigDecimal("-2.00"), money.Money.EUR)
@@ -71,43 +71,43 @@ class InvoiceSpec extends UnitSpec {
     item.flatMap(item => LineItem(item.id, item.code, oneEur, 2)) shouldBe 'bad
   }
 
-  "An invoice" should "allow adding new items" in new InvoiceFixture {
-    invoice shouldBe 'good
+  "An order" should "allow adding new items" in new OrderFixture {
+    order shouldBe 'good
   }
 
-  it should "merge line items having the same item" in new InvoiceFixture {
+  it should "merge line items having the same item" in new OrderFixture {
     private val result = for (
-      state1 <- invoice;
+      state1 <- order;
       lineItemSeq1 <- anotherLineItemSeq;
       state2 <- state1.add(lineItemSeq1)
     ) yield state2
 
     result shouldBe 'good
     result.foreach {
-      case state: DraftInvoice =>
+      case state: DraftOrder =>
       state.itemLines should have size 10
     }
   }
 
-  it should "allow deleting existing items" in new InvoiceFixture {
+  it should "allow deleting existing items" in new OrderFixture {
     private val result = for (
-      state1 <- invoice;
+      state1 <- order;
       itemIds1 <- itemIdsToDelete;
       state2 <- state1.delete(itemIds1)
     ) yield state2
 
     result shouldBe 'good
     result.foreach {
-      case state: DraftInvoice =>
+      case state: DraftOrder =>
         state.itemLines should have size 8
     }
   }
 
-  it should "disallow deleting non-existing items" in new InvoiceFixture {
+  it should "disallow deleting non-existing items" in new OrderFixture {
     private val itemId = ItemId(UUID.randomUUID())
 
     private val result = for (
-      state1 <- invoice;
+      state1 <- order;
       itemId1 <- itemId;
       state2 <- state1.delete(Seq(itemId1))
     ) yield state2
@@ -115,31 +115,31 @@ class InvoiceSpec extends UnitSpec {
     result shouldBe 'bad
   }
 
-  it can "be canceled" in new InvoiceFixture {
-    canceledInvoice shouldBe 'good
+  it can "be canceled" in new OrderFixture {
+    canceledOrder shouldBe 'good
   }
 
-  it can "be canceled even if empty" in new InvoiceFixture {
+  it can "be canceled even if empty" in new OrderFixture {
     private val result = for (
-      state1 <- emptyInvoice;
+      state1 <- emptyOrder;
       state2 <- state1.cancel()
     ) yield state2
 
     result shouldBe 'good
   }
 
-  it should "be canceled once" in new InvoiceFixture {
+  it should "be canceled once" in new OrderFixture {
     private val result = for (
-      state1 <- canceledInvoice;
+      state1 <- canceledOrder;
       state2 <- state1.cancel()
     ) yield state2
 
     result shouldBe 'bad
   }
 
-  it should "not allow adding items when canceled" in new InvoiceFixture {
+  it should "not allow adding items when canceled" in new OrderFixture {
     private val result = for (
-      state1 <- canceledInvoice;
+      state1 <- canceledOrder;
       lineItemSeq1 <- anotherLineItemSeq;
       state2 <- state1.add(lineItemSeq1)
     ) yield state2
@@ -147,9 +147,9 @@ class InvoiceSpec extends UnitSpec {
     result shouldBe 'bad
   }
 
-  it should "not allow deleting items when canceled" in new InvoiceFixture {
+  it should "not allow deleting items when canceled" in new OrderFixture {
     private val result = for (
-      state1 <- canceledInvoice;
+      state1 <- canceledOrder;
       itemIds1 <- itemIdsToDelete;
       state2 <- state1.delete(itemIds1)
     ) yield state2
@@ -157,31 +157,31 @@ class InvoiceSpec extends UnitSpec {
     result shouldBe 'bad
   }
 
-  it can "be issued" in new InvoiceFixture {
-    issuedInvoice shouldBe 'good
+  it can "be issued" in new OrderFixture {
+    issuedOrder shouldBe 'good
   }
 
-  it should "be issued once" in new InvoiceFixture {
+  it should "be issued once" in new OrderFixture {
     private val result = for (
-      state1 <- issuedInvoice;
+      state1 <- issuedOrder;
       state2 <- state1.issue()
     ) yield state2
 
     result shouldBe 'bad
   }
 
-  it should "have a least one line item when being issued" in new InvoiceFixture {
+  it should "have a least one line item when being issued" in new OrderFixture {
     private val result = for (
-      state1 <- emptyInvoice;
+      state1 <- emptyOrder;
       state2 <- state1.issue()
     ) yield state2
 
     result shouldBe 'bad
   }
 
-  it should "not allow adding items after being issued" in new InvoiceFixture {
+  it should "not allow adding items after being issued" in new OrderFixture {
     private val result = for (
-      state1 <- issuedInvoice;
+      state1 <- issuedOrder;
       lineItemSeq1 <- anotherLineItemSeq;
       state2 <- state1.add(lineItemSeq1)
     ) yield state2
@@ -189,9 +189,9 @@ class InvoiceSpec extends UnitSpec {
     result shouldBe 'bad
   }
 
-  it should "not allow deleting items after being issued" in new InvoiceFixture {
+  it should "not allow deleting items after being issued" in new OrderFixture {
     private val result = for (
-      state1 <- issuedInvoice;
+      state1 <- issuedOrder;
       itemIds1 <- itemIdsToDelete;
       state2 <- state1.delete(itemIds1)
     ) yield state2
@@ -199,9 +199,9 @@ class InvoiceSpec extends UnitSpec {
     result shouldBe 'bad
   }
 
-  it can "be cancel after being issued" in new InvoiceFixture {
+  it can "be cancel after being issued" in new OrderFixture {
     private val result = for (
-      state1 <- issuedInvoice;
+      state1 <- issuedOrder;
       state2 <- state1.cancel()
     ) yield state2
 

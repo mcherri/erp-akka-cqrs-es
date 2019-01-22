@@ -20,25 +20,25 @@ package mcherri.erp.akka.cqrs.es.aggregate
 
 import java.util.UUID
 
-import mcherri.erp.akka.cqrs.es.aggregate.InvoiceAggregate.Protocol._
-import mcherri.erp.akka.cqrs.es.model.Invoice.Protocol._
+import mcherri.erp.akka.cqrs.es.aggregate.OrderAggregate.Protocol._
+import mcherri.erp.akka.cqrs.es.model.Order.Protocol._
 import mcherri.erp.akka.cqrs.es.model._
 import org.scalactic.Good
 
 import scala.collection.immutable.Seq
 
-class InvoiceAggregate extends Aggregate[InvoiceState] {
-  state = Good(UninitializedInvoice)
+class OrderAggregate extends Aggregate[OrderState] {
+  state = Good(UninitializedOrder$)
 
   override protected def applyCommand(command: Command): CommandResult =
     for (
       state1 <- state;
       event <- command match {
-        case CreateInvoice(client) => InvoiceId(UUID.fromString(id)).flatMap(state1.canInit(_, client))
+        case CreateOrder(client) => OrderId(UUID.fromString(id)).flatMap(state1.canInit(_, client))
         case AddItems(lineItems) => state1.canAdd(lineItems)
         case DeleteItems(itemIds) => state1.canDelete(itemIds)
-        case CancelInvoice() => state1.canCancel
-        case IssueInvoice() => state1.canIssue
+        case CancelOrder() => state1.canCancel
+        case IssueOrder() => state1.canIssue
       }
     ) yield Seq(event) // FIXME: We should not wrap with Seq
 
@@ -46,30 +46,30 @@ class InvoiceAggregate extends Aggregate[InvoiceState] {
     for (
       state1 <- state;
       state2 <- event match {
-        case InvoiceCreated(id, client) => state1.init(id, client)
+        case OrderCreated(id, client) => state1.init(id, client)
         case ItemsAdded(_, lineItems) => state1.add(lineItems)
         case ItemsDeleted(_, itemIds) => state1.delete(itemIds)
-        case InvoiceCanceled(_) => state1.cancel()
-        case InvoiceIssued(_) => state1.issue()
+        case OrderCanceled(_) => state1.cancel()
+        case OrderIssued(_) => state1.issue()
       }
     ) yield state2
 }
 
-object InvoiceAggregate {
+object OrderAggregate {
 
   object Protocol {
 
-    sealed trait InvoiceCommand extends Command
+    sealed trait OrderCommand extends Command
 
-    case class CreateInvoice(client: Client) extends InvoiceCommand
+    case class CreateOrder(client: Client) extends OrderCommand
 
-    case class AddItems(lineItems: Seq[LineItem]) extends InvoiceCommand
+    case class AddItems(lineItems: Seq[LineItem]) extends OrderCommand
 
-    case class DeleteItems(itemIds: Seq[ItemId]) extends InvoiceCommand
+    case class DeleteItems(itemIds: Seq[ItemId]) extends OrderCommand
 
-    case class CancelInvoice() extends InvoiceCommand
+    case class CancelOrder() extends OrderCommand
 
-    case class IssueInvoice() extends InvoiceCommand
+    case class IssueOrder() extends OrderCommand
   }
 
 }

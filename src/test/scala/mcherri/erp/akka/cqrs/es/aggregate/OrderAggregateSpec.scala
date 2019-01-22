@@ -21,82 +21,82 @@ package mcherri.erp.akka.cqrs.es.aggregate
 import akka.actor.{ActorRef, Props}
 import mcherri.erp.akka.cqrs.es.ActorUnitSpec
 import mcherri.erp.akka.cqrs.es.aggregate.Aggregate.Protocol.GetState
-import mcherri.erp.akka.cqrs.es.aggregate.InvoiceAggregate.Protocol._
+import mcherri.erp.akka.cqrs.es.aggregate.OrderAggregate.Protocol._
 import mcherri.erp.akka.cqrs.es.aggregate.RestartableActor.RestartActor
-import mcherri.erp.akka.cqrs.es.model.Invoice.EmptyInvoiceError
-import mcherri.erp.akka.cqrs.es.model.Invoice.Protocol.{InvoiceCanceled, InvoiceCreated, ItemsAdded}
+import mcherri.erp.akka.cqrs.es.model.Order.EmptyOrderError
+import mcherri.erp.akka.cqrs.es.model.Order.Protocol.{OrderCanceled, OrderCreated, ItemsAdded}
 import mcherri.erp.akka.cqrs.es.model._
 import org.scalactic._
 
-// Only direct scenarios will be test here as indirect ones where already tested in InvoiceSpec.
-class InvoiceAggregateSpec extends ActorUnitSpec {
+// Only direct scenarios will be test here as indirect ones where already tested in OrderSpec.
+class OrderAggregateSpec extends ActorUnitSpec {
 
-  trait InvoiceAggregateFixture extends InvoiceFixture {
+  trait OrderAggregateFixture extends OrderFixture {
     protected val uninitializedAggregate: Or[ActorRef, Every[Error]] =
-      id.map(id => system.actorOf(Props(new InvoiceAggregate with RestartableActor), id.value.toString))
+      id.map(id => system.actorOf(Props(new OrderAggregate with RestartableActor), id.value.toString))
 
     protected val initializeAggregate: Or[ActorRef, Every[Error]] = for (
       aggregate <- uninitializedAggregate;
-      invoiceId <- id;
+      orderId <- id;
       client <- client
     ) yield {
-      aggregate ! CreateInvoice(client)
+      aggregate ! CreateOrder(client)
       expectMsgPF() {
-        case Good(InvoiceCreated(`invoiceId`, `client`)) => Unit
+        case Good(OrderCreated(`orderId`, `client`)) => Unit
       }
       aggregate
     }
   }
 
-  "An invoice aggregate" should "respond to AddItems request with ItemsAdded" in new InvoiceAggregateFixture {
+  "An order aggregate" should "respond to AddItems request with ItemsAdded" in new OrderAggregateFixture {
     for (
-      invoiceId <- id;
+      orderId <- id;
       aggregate <- initializeAggregate;
       lineItems <- lineItemSeq
     ) {
       aggregate ! AddItems(lineItems)
       expectMsgPF() {
-        case Good(ItemsAdded(`invoiceId`, `lineItems`)) => Unit
+        case Good(ItemsAdded(`orderId`, `lineItems`)) => Unit
       }
     }
   }
 
-  it should "respond to DeleteItems with non-existing items with an error" in new InvoiceAggregateFixture {
+  it should "respond to DeleteItems with non-existing items with an error" in new OrderAggregateFixture {
     for (
       aggregate <- initializeAggregate;
       itemIds <- itemIdsToDelete
     ) {
       aggregate ! DeleteItems(itemIds)
       expectMsgPF() {
-        case Bad(One(_: EmptyInvoiceError)) => Unit
+        case Bad(One(_: EmptyOrderError)) => Unit
       }
     }
   }
 
-  it should "respond to CancelInvoice with existing items with InvoiceCanceled" in new InvoiceAggregateFixture {
+  it should "respond to CancelOrder with existing items with OrderCanceled" in new OrderAggregateFixture {
     for (
-      invoiceId <- id;
+      orderId <- id;
       aggregate <- initializeAggregate
     ) {
-      aggregate ! CancelInvoice()
+      aggregate ! CancelOrder()
       expectMsgPF() {
-        case Good(InvoiceCanceled(`invoiceId`)) => Unit
+        case Good(OrderCanceled(`orderId`)) => Unit
       }
     }
   }
 
-  it should "respond to IssueInvoice with no items with an error" in new InvoiceAggregateFixture {
+  it should "respond to IssueOrder with no items with an error" in new OrderAggregateFixture {
     for (
       aggregate <- initializeAggregate
     ) {
-      aggregate ! IssueInvoice()
+      aggregate ! IssueOrder()
       expectMsgPF() {
-        case Bad(One(_: EmptyInvoiceError)) => Unit
+        case Bad(One(_: EmptyOrderError)) => Unit
       }
     }
   }
 
-  it should "restore its states after unexpected errors" in new InvoiceAggregateFixture {
+  it should "restore its states after unexpected errors" in new OrderAggregateFixture {
     for (
       aggregate <- initializeAggregate;
       lineItems <- lineItemSeq
@@ -106,7 +106,7 @@ class InvoiceAggregateSpec extends ActorUnitSpec {
       aggregate ! RestartActor
       aggregate ! GetState
       expectMsgPF() {
-        case Good(EmptyInvoice(_, _)) => Unit // The state should be the good one that was persisted
+        case Good(EmptyOrder(_, _)) => Unit // The state should be the good one that was persisted
       }
 
       aggregate ! AddItems(lineItems)
@@ -118,7 +118,7 @@ class InvoiceAggregateSpec extends ActorUnitSpec {
       aggregate ! RestartActor
       aggregate ! GetState
       expectMsgPF() {
-        case Good(DraftInvoice(_, _, _)) => Unit // The state should be the good one that was persisted
+        case Good(DraftOrder(_, _, _)) => Unit // The state should be the good one that was persisted
       }
     }
   }
