@@ -33,7 +33,7 @@ class OrderAggregateSpec extends ActorUnitSpec {
 
   trait OrderAggregateFixture extends OrderFixture {
     protected val uninitializedAggregate: Or[ActorRef, Every[Error]] =
-      id.map(id => system.actorOf(Props(new OrderAggregate with RestartableActor), id.value.toString))
+      id.map(id => system.actorOf(Props(new OrderAggregate with RestartableActor), id.value))
 
     protected val initializeAggregate: Or[ActorRef, Every[Error]] = for (
       aggregate <- uninitializedAggregate;

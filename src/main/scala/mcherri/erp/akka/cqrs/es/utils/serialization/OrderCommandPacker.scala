@@ -55,11 +55,11 @@ class OrderCommandPacker extends OrderPacker {
 
   override def pack: PartialFunction[AnyRef, GeneratedMessage with Message[_]] = {
     case OrderAggregate.Protocol.CreateOrder(Client(personId)) =>
-      protobuf.order.CreateOrder(protobuf.person.Client(personId.value.toString))
+      protobuf.order.CreateOrder(protobuf.person.Client(personId.value))
     case OrderAggregate.Protocol.AddItems(lineItems) =>
       protobuf.order.AddItems(toProtobufLineItems(lineItems))
     case OrderAggregate.Protocol.DeleteItems(itemIds) =>
-      val protobufItemIds = itemIds.map(_.value.toString)
+      val protobufItemIds = itemIds.map(_.value)
       protobuf.order.DeleteItems(protobufItemIds)
     case OrderAggregate.Protocol.CancelOrder() =>
       protobuf.order.CancelOrder()

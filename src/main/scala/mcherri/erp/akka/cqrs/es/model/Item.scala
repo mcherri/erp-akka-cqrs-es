@@ -24,24 +24,24 @@ import mcherri.erp.akka.cqrs.es.model.ItemId.ItemIdError
 import org.scalactic._
 import org.sisioh.baseunits.scala.money.Money
 
-abstract case class ItemId private[ItemId](value: UUID) {
-  def copy(value: UUID = value): ItemId Or Every[ItemIdError] = ItemId.apply(value)
+abstract case class ItemId private[ItemId](id: UUID) extends UuidAggregateId {
+  def copy(id: UUID = id): ItemId Or Every[ItemIdError] = ItemId.apply(id)
 }
 
 object ItemId {
 
-  def apply(value: UUID): ItemId Or Every[ItemIdError] = {
-    if (value.version() == 4) {
-      Good(new ItemId(value) {})
+  def apply(id: UUID): ItemId Or Every[ItemIdError] = {
+    if (id.version() == 4) {
+      Good(new ItemId(id) {})
     } else {
-      Bad(One(UuidError(value)))
+      Bad(One(UuidError(id)))
     }
   }
 
   sealed abstract class ItemIdError(message: String) extends Error(message)
 
-  case class UuidError(value: UUID)
-    extends ItemIdError(s"ItemId with UUID = $value is not version 4 UUID")
+  case class UuidError(id: UUID)
+    extends ItemIdError(s"ItemId with UUID = $id is not version 4 UUID")
 }
 
 abstract case class Item private[Item](id: ItemId, code: String, description: String,

@@ -73,18 +73,18 @@ class OrderStatePacker extends OrderPacker {
     case UninitializedOrder$ =>
       protobuf.order.UninitializedOrder()
     case EmptyOrder(id, Client(personId)) =>
-      protobuf.order.EmptyOrder(id.value.toString,
-        protobuf.person.Client(personId.value.toString))
+      protobuf.order.EmptyOrder(id.value,
+        protobuf.person.Client(personId.value))
     case DraftOrder(id, Client(personId), itemLines) =>
-      protobuf.order.DraftOrder(id.value.toString,
-        protobuf.person.Client(personId.value.toString),
+      protobuf.order.DraftOrder(id.value,
+        protobuf.person.Client(personId.value),
         toProtobufLineItems(itemLines))
     case CanceledOrder(id) =>
-      protobuf.order.CanceledOrder(id.value.toString)
+      protobuf.order.CanceledOrder(id.value)
     case IssuedOrder(id) =>
-      protobuf.order.IssuedOrder(id.value.toString)
+      protobuf.order.IssuedOrder(id.value)
     case CanceledIssuedOrder(id) =>
-      protobuf.order.CanceledIssuedOrder(id.value.toString)
+      protobuf.order.CanceledIssuedOrder(id.value)
   }
 }
 

@@ -27,12 +27,8 @@ option (scalapb.options) = {
     single_file: true
 };
 
-message ItemId {
-    string value = 1;
-}
-
 message Item {
-    ItemId id = 1;
+    string id = 1;
     string code = 2;
     string description = 17;
     Money price = 18;

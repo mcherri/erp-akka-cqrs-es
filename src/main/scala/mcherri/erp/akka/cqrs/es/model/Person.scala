@@ -25,24 +25,24 @@ import mcherri.erp.akka.cqrs.es.model.User.Protocol.{UserCreated, UserDisabled, 
 import mcherri.erp.akka.cqrs.es.model.User.{AlreadyDisabledError, AlreadyInitializedError, UserError}
 import org.scalactic._
 
-abstract case class PersonId private[PersonId](value: Long) {
-  def copy(value: Long = value): PersonId Or Every[PersonIdError] = PersonId.apply(value)
+abstract case class PersonId private[PersonId](id: Long) extends LongAggregateId {
+  def copy(id: Long = id): PersonId Or Every[PersonIdError] = PersonId.apply(id)
 }
 
 object PersonId {
 
-  def apply(value: Long): PersonId Or Every[PersonIdError] = {
-    if (value > 0) {
-      Good(new  PersonId(value) {})
+  def apply(id: Long): PersonId Or Every[PersonIdError] = {
+    if (id > 0) {
+      Good(new  PersonId(id) {})
     } else {
-      Bad(One(IdError(value)))
+      Bad(One(IdError(id)))
     }
   }
 
   sealed abstract class PersonIdError(message: String) extends Error(message)
 
-  case class IdError(value: Long)
-    extends PersonIdError(s"PersonId with value = $value that is not positive")
+  case class IdError(id: Long)
+    extends PersonIdError(s"PersonId with value = $id that is not positive")
 }
 
 sealed trait Person {

@@ -68,17 +68,17 @@ class OrderDomainEventPacker extends OrderPacker {
 
   override def pack: PartialFunction[AnyRef, GeneratedMessage with Message[_]] = {
     case Protocol.OrderCreated(id, Client(personId)) =>
-      protobuf.order.OrderCreated(id.value.toString,
-        protobuf.person.Client(personId.value.toString))
+      protobuf.order.OrderCreated(id.value,
+        protobuf.person.Client(personId.value))
     case Protocol.ItemsAdded(id, lineItems) =>
-      protobuf.order.ItemsAdded(id.value.toString, toProtobufLineItems(lineItems))
+      protobuf.order.ItemsAdded(id.value, toProtobufLineItems(lineItems))
     case Protocol.ItemsDeleted(id, itemIds) =>
-      val protobufItemIds = itemIds.map(_.value.toString)
-      protobuf.order.ItemsDeleted(id.value.toString, protobufItemIds)
+      val protobufItemIds = itemIds.map(_.value)
+      protobuf.order.ItemsDeleted(id.value, protobufItemIds)
     case Protocol.OrderCanceled(id) =>
-      protobuf.order.OrderCanceled(id.value.toString)
+      protobuf.order.OrderCanceled(id.value)
     case Protocol.OrderIssued(id) =>
-      protobuf.order.OrderIssued(id.value.toString)
+      protobuf.order.OrderIssued(id.value)
   }
 }
 

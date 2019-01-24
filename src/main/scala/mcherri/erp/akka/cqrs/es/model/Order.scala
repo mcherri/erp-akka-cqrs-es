@@ -31,24 +31,24 @@ import mcherri.erp.akka.cqrs.es.utils.RichOr._
 
 import scala.collection.immutable.Seq
 
-abstract case class OrderId private[OrderId](value: UUID) {
-  def copy(value: UUID = value): OrderId Or Every[OrderIdError] = OrderId.apply(value)
+abstract case class OrderId private[OrderId](id: UUID) extends UuidAggregateId {
+  def copy(id: UUID = id): OrderId Or Every[OrderIdError] = OrderId.apply(id)
 }
 
 object OrderId {
 
-  def apply(value: UUID): OrderId Or Every[OrderIdError] = {
-    if (value.version() == 4) {
-      Good(new OrderId(value) {})
+  def apply(id: UUID): OrderId Or Every[OrderIdError] = {
+    if (id.version() == 4) {
+      Good(new OrderId(id) {})
     } else {
-      Bad(One(UuidError(value)))
+      Bad(One(UuidError(id)))
     }
   }
 
   sealed abstract class OrderIdError(message: String) extends Error(message)
 
-  case class UuidError(value: UUID)
-    extends OrderIdError(s"OrderId with UUID = $value is not version 4 UUID")
+  case class UuidError(id: UUID)
+    extends OrderIdError(s"OrderId with UUID = $id is not version 4 UUID")
 }
 
 abstract case class LineItem private[LineItem](itemId: ItemId, code: String,

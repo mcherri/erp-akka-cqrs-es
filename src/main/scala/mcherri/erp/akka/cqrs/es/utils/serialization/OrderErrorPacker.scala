@@ -61,14 +61,14 @@ class OrderErrorPacker extends OrderPacker {
 
   override def pack: PartialFunction[AnyRef, GeneratedMessage with Message[_]] = {
     case Order.ItemIdsNotFoundError(id, itemIds) =>
-      val protobufItemIds = itemIds.map(_.value.toString)
-      protobuf.order.ItemIdsNotFoundError(id.value.toString, protobufItemIds)
+      val protobufItemIds = itemIds.map(_.value)
+      protobuf.order.ItemIdsNotFoundError(id.value, protobufItemIds)
     case Order.AlreadyCanceledError(id) =>
-      protobuf.order.AlreadyCanceledError(id.value.toString)
+      protobuf.order.AlreadyCanceledError(id.value)
     case Order.AlreadyIssuedError(id) =>
-      protobuf.order.AlreadyIssuedError(id.value.toString)
+      protobuf.order.AlreadyIssuedError(id.value)
     case Order.EmptyOrderError(id) =>
-      protobuf.order.EmptyOrderError(id.value.toString)
+      protobuf.order.EmptyOrderError(id.value)
     case Order.UninitializedOrderError$ =>
       protobuf.order.UninitializedOrderError()
     case Order.AlreadyInitializedError =>
