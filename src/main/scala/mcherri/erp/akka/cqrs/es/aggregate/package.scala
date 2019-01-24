@@ -18,7 +18,7 @@
  */
 package mcherri.erp.akka.cqrs.es
 
-import mcherri.erp.akka.cqrs.es.model.DomainEvent
+import mcherri.erp.akka.cqrs.es.model.{AggregateId, DomainEvent}
 import org.scalactic.{Every, Or}
 
 import scala.collection.immutable.Seq
@@ -29,5 +29,11 @@ package object aggregate {
   type CommandResult = Seq[DomainEvent] Or Every[model.Error]
 
   trait Command
+
+  trait CreateCommand extends Command
+
+  trait UpdateCommand extends Command {
+    def id: AggregateId
+  }
 
 }

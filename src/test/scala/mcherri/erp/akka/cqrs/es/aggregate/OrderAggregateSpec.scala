@@ -54,7 +54,7 @@ class OrderAggregateSpec extends ActorUnitSpec {
       aggregate <- initializeAggregate;
       lineItems <- lineItemSeq
     ) {
-      aggregate ! AddItems(lineItems)
+      aggregate ! AddItems(orderId, lineItems)
       expectMsgPF() {
         case Good(ItemsAdded(`orderId`, `lineItems`)) => Unit
       }
@@ -63,10 +63,11 @@ class OrderAggregateSpec extends ActorUnitSpec {
 
   it should "respond to DeleteItems with non-existing items with an error" in new OrderAggregateFixture {
     for (
+      orderId <- id;
       aggregate <- initializeAggregate;
       itemIds <- itemIdsToDelete
     ) {
-      aggregate ! DeleteItems(itemIds)
+      aggregate ! DeleteItems(orderId, itemIds)
       expectMsgPF() {
         case Bad(One(_: EmptyOrderError)) => Unit
       }
@@ -78,7 +79,7 @@ class OrderAggregateSpec extends ActorUnitSpec {
       orderId <- id;
       aggregate <- initializeAggregate
     ) {
-      aggregate ! CancelOrder()
+      aggregate ! CancelOrder(orderId)
       expectMsgPF() {
         case Good(OrderCanceled(`orderId`)) => Unit
       }
@@ -87,9 +88,10 @@ class OrderAggregateSpec extends ActorUnitSpec {
 
   it should "respond to IssueOrder with no items with an error" in new OrderAggregateFixture {
     for (
+      orderId <- id;
       aggregate <- initializeAggregate
     ) {
-      aggregate ! IssueOrder()
+      aggregate ! IssueOrder(orderId)
       expectMsgPF() {
         case Bad(One(_: EmptyOrderError)) => Unit
       }
@@ -98,6 +100,7 @@ class OrderAggregateSpec extends ActorUnitSpec {
 
   it should "restore its states after unexpected errors" in new OrderAggregateFixture {
     for (
+      orderId <- id;
       aggregate <- initializeAggregate;
       lineItems <- lineItemSeq
     ) {
@@ -109,7 +112,7 @@ class OrderAggregateSpec extends ActorUnitSpec {
         case Good(EmptyOrder(_, _)) => Unit // The state should be the good one that was persisted
       }
 
-      aggregate ! AddItems(lineItems)
+      aggregate ! AddItems(orderId, lineItems)
       expectMsgPF() {
         case Good(ItemsAdded(_, _)) => Unit
       }

@@ -35,10 +35,10 @@ class OrderAggregate extends Aggregate[OrderState] {
       state1 <- state;
       event <- command match {
         case CreateOrder(client) => OrderId(UUID.fromString(id)).flatMap(state1.canInit(_, client))
-        case AddItems(lineItems) => state1.canAdd(lineItems)
-        case DeleteItems(itemIds) => state1.canDelete(itemIds)
-        case CancelOrder() => state1.canCancel
-        case IssueOrder() => state1.canIssue
+        case AddItems(orderId, lineItems) if  orderId.id.toString == id => state1.canAdd(lineItems)
+        case DeleteItems(orderId, itemIds) if  orderId.id.toString == id => state1.canDelete(itemIds)
+        case CancelOrder(orderId) if  orderId.id.toString == id => state1.canCancel
+        case IssueOrder(orderId) if  orderId.id.toString == id => state1.canIssue
       }
     ) yield Seq(event) // FIXME: We should not wrap with Seq
 
@@ -59,17 +59,17 @@ object OrderAggregate {
 
   object Protocol {
 
-    sealed trait OrderCommand extends Command
+    sealed trait OrderCommand extends UpdateCommand
 
-    case class CreateOrder(client: Client) extends OrderCommand
+    case class CreateOrder(client: Client) extends CreateCommand
 
-    case class AddItems(lineItems: Seq[LineItem]) extends OrderCommand
+    case class AddItems(id: OrderId, lineItems: Seq[LineItem]) extends OrderCommand
 
-    case class DeleteItems(itemIds: Seq[ItemId]) extends OrderCommand
+    case class DeleteItems(id: OrderId, itemIds: Seq[ItemId]) extends OrderCommand
 
-    case class CancelOrder() extends OrderCommand
+    case class CancelOrder(id: OrderId) extends OrderCommand
 
-    case class IssueOrder() extends OrderCommand
+    case class IssueOrder(id: OrderId) extends OrderCommand
   }
 
 }

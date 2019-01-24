@@ -21,7 +21,7 @@ package mcherri.erp.akka.cqrs.es.utils.serialization
 import com.google.protobuf.any
 import mcherri.erp.akka.cqrs.es.aggregate.Command
 import mcherri.erp.akka.cqrs.es.model
-import mcherri.erp.akka.cqrs.es.model.{DomainEvent, State, protobuf}
+import mcherri.erp.akka.cqrs.es.model.{AggregateId, DomainEvent, LongAggregateId, State, protobuf}
 import mcherri.erp.akka.cqrs.es.utils.serialization.DummiesPacker._
 import scalapb.{GeneratedMessage, Message}
 
@@ -62,7 +62,11 @@ object DummiesPacker {
 
   case object DummyInvalidCommand extends Command
 
-  case object DummyEvent extends DomainEvent
+  case object DummyEvent extends DomainEvent {
+    override def id: AggregateId = new LongAggregateId {
+      override def id: Long = 1
+    }
+  }
 
   case object DummyError extends model.Error("An error")
 

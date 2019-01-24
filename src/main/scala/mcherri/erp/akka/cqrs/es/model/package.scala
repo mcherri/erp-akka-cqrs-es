@@ -23,18 +23,20 @@ import org.sisioh.baseunits.scala.money
 
 package object model {
 
- /*
-  * TODO: DomainEvent should have metadata like:
-  * - occurredAt: TimePoint
-  * - occurredBy: User
-  *
-  * This will help the read side to track thing like:
-  * - createdBy: User
-  * - createdAt: TimePoint
-  * - updatedBy: User
-  * - updatedAt: TimePoint
-  */
-  trait DomainEvent
+  /*
+   * TODO: DomainEvent should have metadata like:
+   * - occurredAt: TimePoint
+   * - occurredBy: User
+   *
+   * This will help the read side to track thing like:
+   * - createdBy: User
+   * - createdAt: TimePoint
+   * - updatedBy: User
+   * - updatedAt: TimePoint
+   */
+  trait DomainEvent {
+    def id: AggregateId
+  }
 
   trait State {
     type StateOrErrors

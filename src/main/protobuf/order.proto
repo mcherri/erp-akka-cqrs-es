@@ -53,21 +53,27 @@ message CreateOrder {
 message AddItems {
     option (scalapb.message).extends = "OrderCommand";
 
+    string id = 1;
     repeated LineItem line_items = 2 [(scalapb.field).collection_type = "scala.collection.immutable.Seq"];
 }
 
 message DeleteItems {
     option (scalapb.message).extends = "OrderCommand";
 
+    string id = 1;
     repeated string item_ids = 2 [(scalapb.field).collection_type = "scala.collection.immutable.Seq"];
 }
 
 message CancelOrder {
     option (scalapb.message).extends = "OrderCommand";
+
+    string id = 1;
 }
 
 message IssueOrder {
     option (scalapb.message).extends = "OrderCommand";
+
+    string id = 1;
 }
 
 // OrderDomainEvent

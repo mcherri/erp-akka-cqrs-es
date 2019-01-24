@@ -19,10 +19,11 @@
 package mcherri.erp.akka.cqrs.es.utils.serialization
 
 import java.io.NotSerializableException
+import java.util.UUID
 
 import com.google.protobuf.any
 import mcherri.erp.akka.cqrs.es.aggregate.OrderAggregate
-import mcherri.erp.akka.cqrs.es.model.{Client, PersonId, protobuf}
+import mcherri.erp.akka.cqrs.es.model.{Client, OrderId, PersonId, protobuf}
 import mcherri.erp.akka.cqrs.es.utils.serialization.OrderCommandPacker._
 import scalapb.{GeneratedMessage, Message}
 
@@ -38,33 +39,43 @@ class OrderCommandPacker extends OrderPacker {
     case any@com.google.protobuf.any.Any(`AddItemsManifest`, _) =>
       val protobufAddItems = any.unpack[protobuf.order.AddItems]
       val addItems = for (
+        id <- OrderId(UUID.fromString(protobufAddItems.id));
         lineItems <- toLineItems(protobufAddItems.lineItems)
-      ) yield OrderAggregate.Protocol.AddItems(lineItems)
+      ) yield OrderAggregate.Protocol.AddItems(id, lineItems)
       addItems.getOrElse(throw new NotSerializableException())
     case any@com.google.protobuf.any.Any(`DeleteItemsManifest`, _) =>
       val protobufDeleteItems = any.unpack[protobuf.order.DeleteItems]
       val deleteItems = for (
+        id <- OrderId(UUID.fromString(protobufDeleteItems.id));
         itemIds <- toItemIds(protobufDeleteItems.itemIds)
-      ) yield OrderAggregate.Protocol.DeleteItems(itemIds)
+      ) yield OrderAggregate.Protocol.DeleteItems(id, itemIds)
       deleteItems.getOrElse(throw new NotSerializableException())
-    case com.google.protobuf.any.Any(`CancelOrderManifest`, _) =>
-      OrderAggregate.Protocol.CancelOrder()
-    case com.google.protobuf.any.Any(`IssueOrderManifest`, _) =>
-      OrderAggregate.Protocol.IssueOrder()
+    case any@com.google.protobuf.any.Any(`CancelOrderManifest`, _) =>
+      val protobufCancelOrder = any.unpack[protobuf.order.CancelOrder]
+      val cancelOrder = for (
+        id <- OrderId(UUID.fromString(protobufCancelOrder.id))
+      ) yield OrderAggregate.Protocol.CancelOrder(id)
+      cancelOrder.getOrElse(throw new NotSerializableException())
+    case any@com.google.protobuf.any.Any(`IssueOrderManifest`, _) =>
+      val protobufIssueOrder = any.unpack[protobuf.order.IssueOrder]
+      val issueOrder = for (
+        id <- OrderId(UUID.fromString(protobufIssueOrder.id))
+      ) yield OrderAggregate.Protocol.IssueOrder(id)
+      issueOrder.getOrElse(throw new NotSerializableException())
   }
 
   override def pack: PartialFunction[AnyRef, GeneratedMessage with Message[_]] = {
     case OrderAggregate.Protocol.CreateOrder(Client(personId)) =>
       protobuf.order.CreateOrder(protobuf.person.Client(personId.value))
-    case OrderAggregate.Protocol.AddItems(lineItems) =>
-      protobuf.order.AddItems(toProtobufLineItems(lineItems))
-    case OrderAggregate.Protocol.DeleteItems(itemIds) =>
+    case OrderAggregate.Protocol.AddItems(id, lineItems) =>
+      protobuf.order.AddItems(id.value, toProtobufLineItems(lineItems))
+    case OrderAggregate.Protocol.DeleteItems(id, itemIds) =>
       val protobufItemIds = itemIds.map(_.value)
-      protobuf.order.DeleteItems(protobufItemIds)
-    case OrderAggregate.Protocol.CancelOrder() =>
-      protobuf.order.CancelOrder()
-    case OrderAggregate.Protocol.IssueOrder() =>
-      protobuf.order.IssueOrder()
+      protobuf.order.DeleteItems(id.value, protobufItemIds)
+    case OrderAggregate.Protocol.CancelOrder(id) =>
+      protobuf.order.CancelOrder(id.value)
+    case OrderAggregate.Protocol.IssueOrder(id) =>
+      protobuf.order.IssueOrder(id.value)
   }
 }
 
