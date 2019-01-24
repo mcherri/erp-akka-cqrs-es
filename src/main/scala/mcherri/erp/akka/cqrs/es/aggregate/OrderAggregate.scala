@@ -35,10 +35,10 @@ class OrderAggregate extends Aggregate[OrderState] {
       state1 <- state;
       event <- command match {
         case CreateOrder(client) => OrderId(UUID.fromString(id)).flatMap(state1.canInit(_, client))
-        case AddItems(orderId, lineItems) if  orderId.id.toString == id => state1.canAdd(lineItems)
-        case DeleteItems(orderId, itemIds) if  orderId.id.toString == id => state1.canDelete(itemIds)
-        case CancelOrder(orderId) if  orderId.id.toString == id => state1.canCancel
-        case IssueOrder(orderId) if  orderId.id.toString == id => state1.canIssue
+        case AddItems(_, lineItems) => state1.canAdd(lineItems)
+        case DeleteItems(_, itemIds) => state1.canDelete(itemIds)
+        case CancelOrder(_) => state1.canCancel
+        case IssueOrder(_) => state1.canIssue
       }
     ) yield Seq(event) // FIXME: We should not wrap with Seq
 

@@ -19,7 +19,7 @@
 package mcherri.erp.akka.cqrs.es.utils.serialization
 
 import com.google.protobuf.any
-import mcherri.erp.akka.cqrs.es.aggregate.Command
+import mcherri.erp.akka.cqrs.es.aggregate.CreateCommand
 import mcherri.erp.akka.cqrs.es.model
 import mcherri.erp.akka.cqrs.es.model.{AggregateId, DomainEvent, LongAggregateId, State, protobuf}
 import mcherri.erp.akka.cqrs.es.utils.serialization.DummiesPacker._
@@ -58,9 +58,9 @@ object DummiesPacker {
   def apply(): DummiesPacker = new DummiesPacker()
 
   // Dummies for testing
-  case object DummyValidCommand extends Command
+  case object DummyValidCommand extends CreateCommand
 
-  case object DummyInvalidCommand extends Command
+  case object DummyInvalidCommand extends CreateCommand
 
   case object DummyEvent extends DomainEvent {
     override def id: AggregateId = new LongAggregateId {

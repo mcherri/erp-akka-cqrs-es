@@ -41,18 +41,24 @@ abstract class Aggregate[T <: State] extends PersistentActor with ActorLogging {
   }
 
   override def receiveCommand: Receive = {
-    case command: Command =>
-      applyCommand(command).fold({
-        persistAll[DomainEvent](_) { event =>
-          applyState(event)
-          sender() ! (Good(event): DomainEvent Or Every[model.Error])
-          // TODO: Save snapshot
-        }
-      }, { errors =>
-        sender() ! (Bad(errors): DomainEvent Or Every[model.Error])
-      })
+    case command: CreateCommand =>
+      validateAndApply(command)
+    case command: UpdateCommand if command.id.value == id => // Make sure the command is ours
+      validateAndApply(command)
     case GetState =>
       sender() ! state
+  }
+
+  private def validateAndApply(command: Command): Unit = {
+    applyCommand(command).fold({
+      persistAll[DomainEvent](_) { event =>
+        applyState(event)
+        sender() ! (Good(event): DomainEvent Or Every[model.Error])
+        // TODO: Save snapshot
+      }
+    }, { errors =>
+      sender() ! (Bad(errors): DomainEvent Or Every[model.Error])
+    })
   }
 
   private def applyState(event: DomainEvent): Unit = {
