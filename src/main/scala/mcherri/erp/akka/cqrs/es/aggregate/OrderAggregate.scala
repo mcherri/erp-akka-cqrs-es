@@ -40,7 +40,7 @@ class OrderAggregate extends Aggregate[OrderState] {
         case CancelOrder(_) => state1.canCancel
         case IssueOrder(_) => state1.canIssue
       }
-    ) yield Seq(event) // FIXME: We should not wrap with Seq
+    ) yield event
 
   override protected def applyEvent(event: DomainEvent): StateOrError =
     for (

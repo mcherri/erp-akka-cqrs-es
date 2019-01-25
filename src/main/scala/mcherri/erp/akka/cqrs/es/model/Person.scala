@@ -25,6 +25,8 @@ import mcherri.erp.akka.cqrs.es.model.User.Protocol.{UserCreated, UserDisabled, 
 import mcherri.erp.akka.cqrs.es.model.User.{AlreadyDisabledError, AlreadyInitializedError, UserError}
 import org.scalactic._
 
+import scala.collection.immutable.Seq
+
 abstract case class PersonId private[PersonId](id: Long) extends LongAggregateId {
   def copy(id: Long = id): PersonId Or Every[PersonIdError] = PersonId.apply(id)
 }
@@ -66,46 +68,48 @@ trait Corporation {
  */
 trait UserState extends State {
   override type StateOrErrors = UserState Or Every[Error]
-  override type DomainEventOrErrors = UserDomainEvent Or Every[Error]
 
-  def canInit(id: PersonId): DomainEventOrErrors
+  override type DomainEvent = UserDomainEvent
+
+  def canInit(id: PersonId): DomainEventsOrErrors
 
   def init(id: PersonId): StateOrErrors
 
-  def canDisable: DomainEventOrErrors
+  def canDisable: DomainEventsOrErrors
 
   def disable(): StateOrErrors
 }
 
 abstract class AbstractUserState(defaultErrors: Every[UserError]) extends UserState {
-  override def canInit(id: PersonId): Or[UserDomainEvent, Every[Error]] = Bad(defaultErrors)
+  override def canInit(id: PersonId): DomainEventsOrErrors = Bad(defaultErrors)
 
-  override def init(id: PersonId): Or[UserState, Every[Error]] = Bad(defaultErrors)
+  override def init(id: PersonId): StateOrErrors = Bad(defaultErrors)
 
-  override def canDisable: Or[UserDomainEvent, Every[Error]] = Bad(defaultErrors)
+  override def canDisable: DomainEventsOrErrors = Bad(defaultErrors)
 
-  override def disable(): Or[UserState, Every[Error]] = Bad(defaultErrors)
+  override def disable(): StateOrErrors = Bad(defaultErrors)
 }
 
 case object UninitializedUser extends AbstractUserState(One(User.UninitializedError)) {
-  override def init(id: PersonId): Or[UserState, Every[Error]] =
+  override def init(id: PersonId): StateOrErrors =
     canInit(id).map(_ => ActiveUser(id))
 
-  override def canInit(id: PersonId): Or[UserDomainEvent, Every[Error]] =
-    Good(UserCreated(id))
+  override def canInit(id: PersonId): DomainEventsOrErrors = {
+    Good(Seq(UserCreated(id)))
+  }
 }
 
 case class ActiveUser(id: PersonId) extends AbstractUserState(One(AlreadyInitializedError)) {
-  override def disable(): Or[UserState, Every[Error]] =
+  override def disable(): StateOrErrors =
     canDisable.map(_ => DisabledUser(id))
 
-  override def canDisable: Or[UserDomainEvent, Every[Error]] = Good(UserDisabled(id))
+  override def canDisable: DomainEventsOrErrors = Good(Seq(UserDisabled(id)))
 }
 
 case class DisabledUser(id: PersonId) extends AbstractUserState(One(AlreadyInitializedError)) {
-  override def canDisable: Or[UserDomainEvent, Every[Error]] = Bad(One(AlreadyDisabledError(id)))
+  override def canDisable: DomainEventsOrErrors = Bad(One(AlreadyDisabledError(id)))
 
-  override def disable(): Or[UserState, Every[Error]] = Bad(One(AlreadyDisabledError(id)))
+  override def disable(): StateOrErrors = Bad(One(AlreadyDisabledError(id)))
 }
 
 abstract case class User private[User](id: PersonId)

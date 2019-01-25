@@ -19,7 +19,10 @@
 package mcherri.erp.akka.cqrs.es
 
 import mcherri.erp.akka.cqrs.es.model.protobuf.common
+import org.scalactic.{Every, Or}
 import org.sisioh.baseunits.scala.money
+
+import scala.collection.immutable.Seq
 
 package object model {
 
@@ -40,7 +43,8 @@ package object model {
 
   trait State {
     type StateOrErrors
-    type DomainEventOrErrors
+    type DomainEvent
+    final type DomainEventsOrErrors = Seq[DomainEvent] Or Every[Error]
   }
 
   // TODO: Move this to protobuf package somehow
