@@ -20,14 +20,14 @@ package mcherri.erp.akka.cqrs.es.model
 
 import java.util.UUID
 
+import mcherri.erp.akka.cqrs.es.model.LineItem.LineItemError
 import mcherri.erp.akka.cqrs.es.model.Order.Protocol._
 import mcherri.erp.akka.cqrs.es.model.Order._
 import mcherri.erp.akka.cqrs.es.model.OrderId.OrderIdError
-import mcherri.erp.akka.cqrs.es.model.LineItem.LineItemError
+import mcherri.erp.akka.cqrs.es.utils.RichOr._
 import org.scalactic.Accumulation._
 import org.scalactic._
 import org.sisioh.baseunits.scala.money.Money
-import mcherri.erp.akka.cqrs.es.utils.RichOr._
 
 import scala.collection.immutable.Seq
 
@@ -49,6 +49,7 @@ object OrderId {
 
   case class UuidError(id: UUID)
     extends OrderIdError(s"OrderId with UUID = $id is not version 4 UUID")
+
 }
 
 abstract case class LineItem private[LineItem](itemId: ItemId, code: String,
@@ -87,6 +88,7 @@ object LineItem {
 
   case class MoreThanRemainingQuantityError(quantity: BigDecimal)
     extends LineItemError(s"Line item with quantity that is more than the item remaining quantity")
+
 }
 
 /*
@@ -136,40 +138,39 @@ trait OrderState extends State {
   def issue(): StateOrErrors
 }
 
-// FIXME: AbstractOrderState should take an Every[OrderError]
-abstract class AbstractOrderState(defaultError: OrderError) extends OrderState {
-  override def canInit(id: OrderId, client: Client): DomainEventOrErrors = Bad(One(defaultError))
+abstract class AbstractOrderState(defaultErrors: Every[OrderError]) extends OrderState {
+  override def canInit(id: OrderId, client: Client): DomainEventOrErrors = Bad(defaultErrors)
 
-  override def init(id: OrderId, client: Client): StateOrErrors = Bad(One(defaultError))
+  override def init(id: OrderId, client: Client): StateOrErrors = Bad(defaultErrors)
 
-  override def canAdd(newLines: Seq[LineItem]): DomainEventOrErrors = Bad(One(defaultError))
+  override def canAdd(newLines: Seq[LineItem]): DomainEventOrErrors = Bad(defaultErrors)
 
-  override def add(newLines: Seq[LineItem]): StateOrErrors = Bad(One(defaultError))
+  override def add(newLines: Seq[LineItem]): StateOrErrors = Bad(defaultErrors)
 
-  override def canDelete(itemIds: Seq[ItemId]): DomainEventOrErrors = Bad(One(defaultError))
+  override def canDelete(itemIds: Seq[ItemId]): DomainEventOrErrors = Bad(defaultErrors)
 
-  override def delete(itemIds: Seq[ItemId]): StateOrErrors = Bad(One(defaultError))
+  override def delete(itemIds: Seq[ItemId]): StateOrErrors = Bad(defaultErrors)
 
-  override def canCancel: DomainEventOrErrors = Bad(One(defaultError))
+  override def canCancel: DomainEventOrErrors = Bad(defaultErrors)
 
-  override def cancel(): StateOrErrors = Bad(One(defaultError))
+  override def cancel(): StateOrErrors = Bad(defaultErrors)
 
-  override def canIssue: DomainEventOrErrors = Bad(One(defaultError))
+  override def canIssue: DomainEventOrErrors = Bad(defaultErrors)
 
-  override def issue(): StateOrErrors = Bad(One(defaultError))
+  override def issue(): StateOrErrors = Bad(defaultErrors)
 }
 
-case object UninitializedOrder extends AbstractOrderState(Order.UninitializedOrderError) {
-  // TODO: Maybe we need to validate the parameters here.
-  override def canInit(id: OrderId, client: Client): DomainEventOrErrors =
-    Good(OrderCreated(id, client))
-
+case object UninitializedOrder extends AbstractOrderState(One(Order.UninitializedOrderError)) {
   override def init(id: OrderId, client: Client): StateOrErrors = {
     canInit(id, client).map(_ => EmptyOrder(id, client))
   }
+
+  // TODO: Maybe we need to validate the parameters here.
+  override def canInit(id: OrderId, client: Client): DomainEventOrErrors =
+    Good(OrderCreated(id, client))
 }
 
-case class EmptyOrder(id: OrderId, client: Client) extends AbstractOrderState(EmptyOrderError(id)) {
+case class EmptyOrder(id: OrderId, client: Client) extends AbstractOrderState(One(EmptyOrderError(id))) {
   override def canInit(id: OrderId, client: Client): UninitializedOrder.DomainEventOrErrors = Bad(One(AlreadyInitializedError))
 
   override def init(id: OrderId, client: Client): StateOrErrors = Bad(One(AlreadyInitializedError))
@@ -184,13 +185,13 @@ case class EmptyOrder(id: OrderId, client: Client) extends AbstractOrderState(Em
 
   override def canAdd(newLines: Seq[LineItem]): DomainEventOrErrors = Good(ItemsAdded(id, newLines))
 
-  override def canCancel: DomainEventOrErrors = Good(OrderCanceled(id))
-
   override def cancel(): StateOrErrors = canCancel.map(_ => CanceledOrder(id))
+
+  override def canCancel: DomainEventOrErrors = Good(OrderCanceled(id))
 }
 
 case class DraftOrder(id: OrderId, client: Client,
-                      itemLines: Seq[LineItem]) extends AbstractOrderState(AlreadyInitializedError) {
+                      itemLines: Seq[LineItem]) extends AbstractOrderState(One(AlreadyInitializedError)) {
   override def add(newLines: Seq[LineItem]): StateOrErrors =
     for (
       _ <- canAdd(newLines);
@@ -241,15 +242,16 @@ case class DraftOrder(id: OrderId, client: Client,
   override def canIssue: DomainEventOrErrors = Good(OrderIssued(id))
 }
 
-case class CanceledOrder(id: OrderId) extends AbstractOrderState(AlreadyCanceledError(id))
+case class CanceledOrder(id: OrderId) extends AbstractOrderState(One(AlreadyCanceledError(id)))
 
-case class IssuedOrder(id: OrderId) extends AbstractOrderState(AlreadyIssuedError(id)) {
+case class IssuedOrder(id: OrderId) extends AbstractOrderState(One(AlreadyIssuedError(id))) {
   override def cancel(): StateOrErrors = canCancel.map(_ => CanceledIssuedOrder(id))
 
   override def canCancel: DomainEventOrErrors = Good(OrderCanceled(id))
 }
 
-case class CanceledIssuedOrder(id: OrderId) extends AbstractOrderState(AlreadyCanceledError(id))
+case class CanceledIssuedOrder(id: OrderId) extends
+  AbstractOrderState(Many(AlreadyCanceledError(id), AlreadyIssuedError(id)))
 
 object Order {
 
@@ -272,12 +274,19 @@ object Order {
   case object AlreadyInitializedError extends OrderError("Order is already initialized")
 
   object Protocol {
+
     sealed trait OrderDomainEvent extends DomainEvent
+
     case class OrderCreated(id: OrderId, client: Client) extends OrderDomainEvent
+
     case class ItemsAdded(id: OrderId, lineItems: Seq[LineItem]) extends OrderDomainEvent
+
     case class ItemsDeleted(id: OrderId, itemIds: Seq[ItemId]) extends OrderDomainEvent
+
     case class OrderCanceled(id: OrderId) extends OrderDomainEvent
+
     case class OrderIssued(id: OrderId) extends OrderDomainEvent
+
   }
 
 }

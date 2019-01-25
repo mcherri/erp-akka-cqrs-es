@@ -33,7 +33,7 @@ object PersonId {
 
   def apply(id: Long): PersonId Or Every[PersonIdError] = {
     if (id > 0) {
-      Good(new  PersonId(id) {})
+      Good(new PersonId(id) {})
     } else {
       Bad(One(IdError(id)))
     }
@@ -43,6 +43,7 @@ object PersonId {
 
   case class IdError(id: Long)
     extends PersonIdError(s"PersonId with value = $id that is not positive")
+
 }
 
 sealed trait Person {
@@ -76,32 +77,32 @@ trait UserState extends State {
   def disable(): StateOrErrors
 }
 
-abstract class AbstractUserState(defaultError: UserError) extends UserState {
-  override def canInit(id: PersonId): Or[UserDomainEvent, Every[Error]] = Bad(One(defaultError))
+abstract class AbstractUserState(defaultErrors: Every[UserError]) extends UserState {
+  override def canInit(id: PersonId): Or[UserDomainEvent, Every[Error]] = Bad(defaultErrors)
 
-  override def init(id: PersonId): Or[UserState, Every[Error]] = Bad(One(defaultError))
+  override def init(id: PersonId): Or[UserState, Every[Error]] = Bad(defaultErrors)
 
-  override def canDisable: Or[UserDomainEvent, Every[Error]] = Bad(One(defaultError))
+  override def canDisable: Or[UserDomainEvent, Every[Error]] = Bad(defaultErrors)
 
-  override def disable(): Or[UserState, Every[Error]] = Bad(One(defaultError))
+  override def disable(): Or[UserState, Every[Error]] = Bad(defaultErrors)
 }
 
-case object UninitializedUser extends AbstractUserState(User.UninitializedError) {
-  override def canInit(id: PersonId): Or[UserDomainEvent, Every[Error]] =
-    Good(UserCreated(id))
-
+case object UninitializedUser extends AbstractUserState(One(User.UninitializedError)) {
   override def init(id: PersonId): Or[UserState, Every[Error]] =
     canInit(id).map(_ => ActiveUser(id))
+
+  override def canInit(id: PersonId): Or[UserDomainEvent, Every[Error]] =
+    Good(UserCreated(id))
 }
 
-case class ActiveUser(id: PersonId) extends AbstractUserState(AlreadyInitializedError) {
-  override def canDisable: Or[UserDomainEvent, Every[Error]] = Good(UserDisabled(id))
-
+case class ActiveUser(id: PersonId) extends AbstractUserState(One(AlreadyInitializedError)) {
   override def disable(): Or[UserState, Every[Error]] =
     canDisable.map(_ => DisabledUser(id))
+
+  override def canDisable: Or[UserDomainEvent, Every[Error]] = Good(UserDisabled(id))
 }
 
-case class DisabledUser(id: PersonId) extends AbstractUserState(AlreadyInitializedError) {
+case class DisabledUser(id: PersonId) extends AbstractUserState(One(AlreadyInitializedError)) {
   override def canDisable: Or[UserDomainEvent, Every[Error]] = Bad(One(AlreadyDisabledError(id)))
 
   override def disable(): Or[UserState, Every[Error]] = Bad(One(AlreadyDisabledError(id)))
@@ -113,17 +114,22 @@ object User {
 
   sealed abstract class UserError(message: String) extends Error(message)
 
+  case class AlreadyDisabledError(id: PersonId) extends UserError(s"User with id = $id is already disabled")
+
   case object UninitializedError extends UserError("User is not initialized yet")
 
   case object AlreadyInitializedError extends UserError("User is already initialized")
 
-  case class AlreadyDisabledError(id: PersonId) extends UserError(s"User with id = $id is already disabled")
-
   object Protocol {
+
     sealed trait UserDomainEvent extends DomainEvent
+
     case class UserCreated(id: PersonId) extends UserDomainEvent
+
     case class UserDisabled(id: PersonId) extends UserDomainEvent
+
   }
+
 }
 
 abstract case class Client private[Client](id: PersonId) {
@@ -135,6 +141,7 @@ object Client {
   def apply(id: PersonId): Client Or Every[ClientError] = Good(new Client(id) {})
 
   sealed abstract class ClientError(message: String) extends Error(message)
+
 }
 
 abstract case class Supplier private[Supplier](id: PersonId) {
@@ -143,7 +150,8 @@ abstract case class Supplier private[Supplier](id: PersonId) {
 
 object Supplier {
 
-  def apply(id: PersonId): Supplier Or Every[SupplierError] = Good( new Supplier(id) {})
+  def apply(id: PersonId): Supplier Or Every[SupplierError] = Good(new Supplier(id) {})
 
   sealed abstract class SupplierError(message: String) extends Error(message)
+
 }
