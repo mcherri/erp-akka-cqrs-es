@@ -30,7 +30,7 @@ trait OrderFixture extends CommonFixture {
   protected val emptyOrder: Or[OrderState, Every[Error]] = for (
     id1 <- id;
     client1 <- client;
-    state <- UninitializedOrder$.init(id1, client1)
+    state <- UninitializedOrder.init(id1, client1)
   ) yield state
 
   protected val order: Or[OrderState, Every[Error]] = for (

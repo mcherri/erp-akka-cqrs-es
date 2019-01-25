@@ -29,7 +29,7 @@ import scalapb.{GeneratedMessage, Message}
 class OrderStatePacker extends OrderPacker {
   override def unpack: PartialFunction[any.Any, AnyRef] = {
     case com.google.protobuf.any.Any(`UninitializedOrderManifest`, _) =>
-      UninitializedOrder$
+      UninitializedOrder
     case any@com.google.protobuf.any.Any(`EmptyOrderManifest`, _) =>
       val protobufEmptyOrder = any.unpack[protobuf.order.EmptyOrder]
       val protobufClient = protobufEmptyOrder.client
@@ -70,7 +70,7 @@ class OrderStatePacker extends OrderPacker {
   }
 
   override def pack: PartialFunction[AnyRef, GeneratedMessage with Message[_]] = {
-    case UninitializedOrder$ =>
+    case UninitializedOrder =>
       protobuf.order.UninitializedOrder()
     case EmptyOrder(id, Client(personId)) =>
       protobuf.order.EmptyOrder(id.value,

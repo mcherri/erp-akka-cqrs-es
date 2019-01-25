@@ -159,7 +159,7 @@ abstract class AbstractOrderState(defaultError: OrderError) extends OrderState {
   override def issue(): StateOrErrors = Bad(One(defaultError))
 }
 
-case object UninitializedOrder$ extends AbstractOrderState(Order.UninitializedOrderError$) {
+case object UninitializedOrder extends AbstractOrderState(Order.UninitializedOrderError) {
   // TODO: Maybe we need to validate the parameters here.
   override def canInit(id: OrderId, client: Client): DomainEventOrErrors =
     Good(OrderCreated(id, client))
@@ -170,7 +170,7 @@ case object UninitializedOrder$ extends AbstractOrderState(Order.UninitializedOr
 }
 
 case class EmptyOrder(id: OrderId, client: Client) extends AbstractOrderState(EmptyOrderError(id)) {
-  override def canInit(id: OrderId, client: Client): UninitializedOrder$.DomainEventOrErrors = Bad(One(AlreadyInitializedError))
+  override def canInit(id: OrderId, client: Client): UninitializedOrder.DomainEventOrErrors = Bad(One(AlreadyInitializedError))
 
   override def init(id: OrderId, client: Client): StateOrErrors = Bad(One(AlreadyInitializedError))
 
@@ -267,7 +267,7 @@ object Order {
   case class EmptyOrderError(id: OrderId)
     extends OrderError(s"Order with id = $id does is empty")
 
-  case object UninitializedOrderError$ extends OrderError("Order is not initialized yet")
+  case object UninitializedOrderError extends OrderError("Order is not initialized yet")
 
   case object AlreadyInitializedError extends OrderError("Order is already initialized")
 

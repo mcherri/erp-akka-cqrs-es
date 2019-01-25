@@ -28,7 +28,7 @@ import org.scalactic.Good
 import scala.collection.immutable.Seq
 
 class OrderAggregate extends Aggregate[OrderState] {
-  state = Good(UninitializedOrder$)
+  state = Good(UninitializedOrder)
 
   override protected def applyCommand(command: Command): CommandResult =
     for (

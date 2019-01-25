@@ -54,7 +54,7 @@ class OrderErrorPacker extends OrderPacker {
       ) yield Order.EmptyOrderError(orderId)
       emptyOrderError.getOrElse(throw new NotSerializableException())
     case com.google.protobuf.any.Any(`UninitializedOrderErrorManifest`, _) =>
-      Order.UninitializedOrderError$
+      Order.UninitializedOrderError
     case com.google.protobuf.any.Any(`AlreadyInitializedErrorManifest`, _) =>
       Order.AlreadyInitializedError
   }
@@ -69,7 +69,7 @@ class OrderErrorPacker extends OrderPacker {
       protobuf.order.AlreadyIssuedError(id.value)
     case Order.EmptyOrderError(id) =>
       protobuf.order.EmptyOrderError(id.value)
-    case Order.UninitializedOrderError$ =>
+    case Order.UninitializedOrderError =>
       protobuf.order.UninitializedOrderError()
     case Order.AlreadyInitializedError =>
       protobuf.order.AlreadyInitializedError()
